@@ -1,0 +1,104 @@
+# File Search
+## Install
+Builer Image:
+
+```sh
+docker build -t filesearch .
+```
+## Startup
+```sh
+mkdir data //创建索引目录
+docker run -v data:/data -e ZINC_DATA_PATH="/data" -p 6317:6317 -e ZINC_FIRST_ADMIN_USER=admin -e ZINC_FIRST_ADMIN_PASSWORD=User#123 --name searcher filesearch
+```
+ZINC_FIRST_ADMIN_USER，ZINC_FIRST_ADMIN_PASSWORD为用户名和密码。首次启动时设置，之后保持不变。
+
+## API
+### Host
+http://localhost:6317
+
+### 索引和文件
+filesearch可以建立多个索引，通过索引名index标识。添加、删除和查询文件将在指定的某个索引内进行，如果没有指定则使用默认名为terminals的索引。
+
+### 请求格式
+post请求使用表单格式
+
+Content-Type:multipart/form-data
+
+### 返回结构
+
+返回示例：{"code":0, "data":"XXX"}
+
+code为0则成功，data为返回信息。小于0为错误，data为错误信息。
+
+### 添加文件 http://127.0.0.1:6317/api/input
+
+#### 请求字段：
+
+| 请求字段 | 类型     | 备注                             |
+| -------- | -------- | -------------------------------- |
+| index    | string   | 索引名（可选，默认为terminals）  |
+| doc      | file文件 | 文件上传                         |
+| path     | string   | 文件路径                         |
+| filename | string   | 文件名（可选，默认为上传文件名） |
+| content  | string   | 文本内容（可选，暂时备用）       |
+
+#### 返回：
+
+```json
+{
+   code: 0,
+   data : "5c6390bb-abc4-41c1-8e97-8215fe74a066" //添加文件的编号DocID，DocID对应唯一文件
+}
+```
+
+### 删除文件 http://127.0.0.1:6317/api/delete
+
+#### 请求字段：
+
+| 请求字段 | 类型   | 备注                            |
+| -------- | ------ | ------------------------------- |
+| index    | string | 索引名（可选，默认为terminals） |
+| docId    | string | 文件编号 DocID                  |
+
+#### 返回：
+
+```json
+{
+   code: 0,
+   data : "5c6390bb-abc4-41c1-8e97-8215fe74a066" //删除文件的编号DocID
+}
+```
+
+### 查找文件 http://127.0.0.1:6317/api/query
+
+#### 请求字段：
+
+| 请求字段 | 类型   | 备注                            |
+| -------- | ------ | ------------------------------- |
+| index    | string | 索引名（可选，默认为terminals） |
+| query    | string | 查询文本                        |
+| limit    | int    | 最大回复数 （暂时不支持分页）   |
+
+#### 返回：
+
+```json
+{
+   code: 0
+   data : {
+     count: 10,
+     offset : 0,
+     limit : 10,
+     items: [
+        {	
+              name: 'aaa.js', //文件名
+              docId: "5c6390bb-abc4-41c1-8e97-8215fe74a066", //文件编号
+              where: "/131313/bbb", //路径
+              type: "js", //扩展名
+              size: number, //字节数
+              created : number, //创建时间戳
+              content：'' ， //文件内容
+         }
+    ]
+   }
+}
+```
