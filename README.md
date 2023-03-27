@@ -44,7 +44,7 @@ code为0则成功，data为返回信息。小于0为错误，data为错误信息
 
 #### 返回：
 
-```json
+```
 {
    code: 0,
    data : "5c6390bb-abc4-41c1-8e97-8215fe74a066" //添加文件的编号DocID，DocID对应唯一文件
@@ -62,7 +62,7 @@ code为0则成功，data为返回信息。小于0为错误，data为错误信息
 
 #### 返回：
 
-```json
+```
 {
    code: 0,
    data : "5c6390bb-abc4-41c1-8e97-8215fe74a066" //删除文件的编号DocID
@@ -81,7 +81,7 @@ code为0则成功，data为返回信息。小于0为错误，data为错误信息
 
 #### 返回：
 
-```json
+```
 {
    code: 0
    data : {
