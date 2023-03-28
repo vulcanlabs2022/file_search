@@ -151,11 +151,12 @@ func (s *Service) HandleInput(c *gin.Context) {
 	}
 
 	doc := map[string]interface{}{
-		"name":    filename,
-		"where":   filePath,
-		"content": content,
-		"size":    size,
-		"created": time.Now().Unix(),
+		"name":        filename,
+		"where":       filePath,
+		"content":     content,
+		"size":        size,
+		"created":     time.Now().Unix(),
+		"format_name": formatFilename(filename),
 	}
 
 	id, err := s.zincInput(index, doc)

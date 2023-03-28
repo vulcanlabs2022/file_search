@@ -1,6 +1,6 @@
 # File Search
 ## Install
-Builer Image:
+Build Docker Image:
 
 ```sh
 docker build -t filesearch .

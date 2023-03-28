@@ -18,12 +18,8 @@ import (
 
 const zincUrl = "http://localhost:4080"
 const port = "1234"
-const username = "test"
-const password = "test"
-
-func init() {
-	InitRpcService(zincUrl, port, username, password)
-}
+const username = "admin"
+const password = "User#123"
 
 const index = DefaultIndex
 
@@ -156,9 +152,9 @@ func TestDelete(t *testing.T) {
 }
 func TestQuery(t *testing.T) {
 	res, err := RpcServer.zincQuery(QueryReq{
-		SearchType: "match",
+		SearchType: "querystring",
 		Query: Query{
-			Term: "你好",
+			Term: "zinc_test",
 		},
 		From:      0,
 		MaxResult: 10,
@@ -191,4 +187,8 @@ func TestPost(t *testing.T) {
 		t.Fatal(err)
 	}
 	fmt.Printf("%v", result)
+}
+
+func TestFormatFilename(t *testing.T) {
+	fmt.Println(formatFilename("NihaoTest_something.txt"))
 }

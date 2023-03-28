@@ -31,3 +31,6 @@ tmp/
 
 # binary in root
 /zincsearch
+
+#gateway binary
+/gateway/wzinc
