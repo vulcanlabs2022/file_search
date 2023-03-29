@@ -34,3 +34,7 @@ tmp/
 
 #gateway binary
 /gateway/wzinc
+
+*.doc
+*.docx
+*.pdf

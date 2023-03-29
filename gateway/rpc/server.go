@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"strconv"
+	"wzinc/parser"
 
 	"net/http"
 
-	"github.com/rs/zerolog/log"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/gin-gonic/gin"
 )
@@ -131,16 +132,18 @@ func (s *Service) HandleInput(c *gin.Context) {
 		file, err := fileHeader.Open()
 		if err != nil {
 			log.Error().Msgf("open file err %v", err)
+			rep.ResultMsg = err.Error()
 			return
 		}
-		defer file.Close()
-		docData, err := ioutil.ReadAll(file)
-		if err != nil {
-			log.Error().Msgf("read file error %v", err)
-			return
-		}
-		content = string(docData) //TODO:parse doc
 		filename = fileHeader.Filename
+		defer file.Close()
+		content, err = parser.ParseDoc(file, filename)
+		if err != nil {
+			log.Error().Msgf("parse file error %v", err)
+			rep.ResultMsg = err.Error()
+			return
+		}
+
 		size = fileHeader.Size
 	}
 
@@ -167,7 +170,6 @@ func (s *Service) HandleInput(c *gin.Context) {
 	}
 	rep.ResultCode = Success
 	rep.ResultMsg = string(id)
-	return
 }
 
 func (s *Service) HandleDelete(c *gin.Context) {

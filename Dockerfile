@@ -41,6 +41,9 @@ COPY --from=builder /etc/group /etc/group
 # Copy our static executable.
 COPY --from=builder /go/src/gateway/wzinc /go/bin/wzinc
 
+RUN apt-get update
+RUN apt-get install -y poppler-utils wv unrtf tidy
+
 # Use an unprivileged user.
 USER gateway:gateway
 # Port on which the gateway service will be exposed.
