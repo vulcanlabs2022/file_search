@@ -44,7 +44,7 @@ func (s *Service) zincDelete(docId string, index string) ([]byte, error) {
 	url := s.zincUrl + "/api/" + index + "/_doc/" + docId
 	req, err := http.NewRequest("DELETE", url, strings.NewReader(""))
 	if err != nil {
-		return nil, ErrQuery
+		return nil, err
 	}
 	req.SetBasicAuth(s.username, s.password)
 	req.Header.Set("Content-Type", "application/json")
@@ -52,7 +52,7 @@ func (s *Service) zincDelete(docId string, index string) ([]byte, error) {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, ErrQuery
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
@@ -60,7 +60,7 @@ func (s *Service) zincDelete(docId string, index string) ([]byte, error) {
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, ErrQuery
+		return nil, err
 	}
 	return body, nil
 }
@@ -120,7 +120,7 @@ func (s *Service) zincQuery(query QueryReq, index string) ([]QueryResult, error)
 	url := s.zincUrl + "/api/" + index + "/_search"
 	req, err := http.NewRequest("POST", url, strings.NewReader(string(queryJson)))
 	if err != nil {
-		return nil, ErrQuery
+		return nil, err
 	}
 	req.SetBasicAuth(s.username, s.password)
 	req.Header.Set("Content-Type", "application/json")
@@ -128,15 +128,15 @@ func (s *Service) zincQuery(query QueryReq, index string) ([]QueryResult, error)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, ErrQuery
+		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return nil, ErrQuery
-	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, ErrQuery
+		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		return nil, errors.New(string(body))
 	}
 	cnt := gjson.Get(string(body), "hits.total.value").Int()
 	if cnt == 0 {

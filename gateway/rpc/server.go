@@ -90,8 +90,8 @@ func (c *Service) Start(ctx context.Context) error {
 	r.POST("/api/query", c.HandleQuery)
 	address := "0.0.0.0:" + c.port
 
-	r.Run(address)
-	log.Info().Msg("start rpc on port:" + c.port)
+	go r.Run(address)
+	log.Info().Msgf("start rpc on port:%s", c.port)
 	return nil
 }
 

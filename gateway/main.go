@@ -10,6 +10,7 @@ import (
 
 	"wzinc/rpc"
 
+	"github.com/rs/zerolog"
 	cli "gopkg.in/urfave/cli.v1"
 )
 
@@ -47,6 +48,7 @@ var commandStart = cli.Command{
 }
 
 func Start(ctx *cli.Context) {
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	url := os.Getenv("ZINC_URI")
 	if url == "" {
 		url = "http://localhost:4080"

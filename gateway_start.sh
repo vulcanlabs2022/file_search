@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Start the first process
-/go/bin/zincsearch &
+# /go/bin/zincsearch &
   
 # Start the second process
 /go/bin/wzinc start &

@@ -5,12 +5,18 @@ Build Docker Image:
 ```sh
 docker build -t filesearch .
 ```
+
+拉取镜像
+```sh
+docker pull calehh/file_search:latest
+```
+https://hub.docker.com/repository/docker/calehh/file_search
+
 ## Startup
 ```sh
-mkdir data //创建索引目录
-docker run -v data:/data -e ZINC_DATA_PATH="/data" -p 6317:6317 -e ZINC_FIRST_ADMIN_USER=admin -e ZINC_FIRST_ADMIN_PASSWORD=User#123 --name searcher filesearch
+docker run -p 6317:6317 -e ZINC_FIRST_ADMIN_USER=admin -e ZINC_FIRST_ADMIN_PASSWORD=User#123 -e ZINC_URI="http://host.docker.internal:4080" --name searcher filesearch
 ```
-ZINC_FIRST_ADMIN_USER，ZINC_FIRST_ADMIN_PASSWORD为用户名和密码。首次启动时设置，之后保持不变。
+ZINC_FIRST_ADMIN_USER，ZINC_FIRST_ADMIN_PASSWORD分别为zincsearch的用户名和密码。
 
 ## API
 ### Host
