@@ -16,7 +16,7 @@ https://hub.docker.com/repository/docker/calehh/file_search
 ```sh
 docker run -p 6317:6317 -e ZINC_FIRST_ADMIN_USER=admin -e ZINC_FIRST_ADMIN_PASSWORD=User#123 -e ZINC_URI="http://host.docker.internal:4080" --name searcher calehh/file_search:latest
 ```
-ZINC_FIRST_ADMIN_USER，ZINC_FIRST_ADMIN_PASSWORD分别为zincsearch的用户名和密码。
+ZINC_FIRST_ADMIN_USER，ZINC_FIRST_ADMIN_PASSWORD分别为zincsearch的用户名和密码。ZINC_URI为zincsearch服务URI。
 
 ## API
 ### Host
