@@ -36,7 +36,7 @@ var SessionCookieName = "session_id"
 
 var Host = "127.0.0.1"
 
-const DefaultIndex = "teminals"
+const DefaultIndex = "terminus"
 const DefaultMaxResult = 10
 
 var once sync.Once

@@ -17,7 +17,7 @@ ZINC_FIRST_ADMIN_USER，ZINC_FIRST_ADMIN_PASSWORD为用户名和密码。首次�
 http://localhost:6317
 
 ### 索引和文件
-filesearch可以建立多个索引，通过索引名index标识。添加、删除和查询文件将在指定的某个索引内进行，如果没有指定则使用默认名为terminals的索引。
+filesearch可以建立多个索引，通过索引名index标识。添加、删除和查询文件将在指定的某个索引内进行，如果没有指定则使用默认名为terminus的索引。
 
 ### 请求格式
 post请求使用表单格式
@@ -36,11 +36,13 @@ code为0则成功，data为返回信息。小于0为错误，data为错误信息
 
 | 请求字段 | 类型     | 备注                             |
 | -------- | -------- | -------------------------------- |
-| index    | string   | 索引名（可选，默认为terminals）  |
+| index    | string   | 索引名（可选，默认为terminus）  |
 | doc      | file文件 | 文件上传                         |
 | path     | string   | 文件路径                         |
 | filename | string   | 文件名（可选，默认为上传文件名） |
 | content  | string   | 文本内容（可选，暂时备用）       |
+
+文件内容来自doc或者content二选一，doc优先级更高。
 
 #### 返回：
 
@@ -57,7 +59,7 @@ code为0则成功，data为返回信息。小于0为错误，data为错误信息
 
 | 请求字段 | 类型   | 备注                            |
 | -------- | ------ | ------------------------------- |
-| index    | string | 索引名（可选，默认为terminals） |
+| index    | string | 索引名（可选，默认为terminus） |
 | docId    | string | 文件编号 DocID                  |
 
 #### 返回：
@@ -75,7 +77,7 @@ code为0则成功，data为返回信息。小于0为错误，data为错误信息
 
 | 请求字段 | 类型   | 备注                            |
 | -------- | ------ | ------------------------------- |
-| index    | string | 索引名（可选，默认为terminals） |
+| index    | string | 索引名（可选，默认为terminus） |
 | query    | string | 查询文本                        |
 | limit    | int    | 最大回复数 （暂时不支持分页）   |
 
