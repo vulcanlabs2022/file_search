@@ -37,7 +37,8 @@ var SessionCookieName = "session_id"
 
 var Host = "127.0.0.1"
 
-const DefaultIndex = "terminus"
+const FileIndex = "terminus"
+const RssIndex = "Rss"
 const DefaultMaxResult = 10
 
 var once sync.Once
@@ -61,6 +62,9 @@ func InitRpcService(url, port, username, password string) {
 			zincUrl:  url,
 			username: username,
 			password: password,
+		}
+		if err := RpcServer.setupIndex(); err != nil {
+			panic(err)
 		}
 	})
 }
@@ -116,7 +120,7 @@ func (s *Service) HandleInput(c *gin.Context) {
 
 	index := c.PostForm("index")
 	if index == "" {
-		index = DefaultIndex
+		index = FileIndex
 	}
 
 	filename := c.PostForm("filename")
@@ -187,7 +191,7 @@ func (s *Service) HandleDelete(c *gin.Context) {
 
 	index := c.PostForm("index")
 	if index == "" {
-		index = DefaultIndex
+		index = FileIndex
 	}
 	docId := c.PostForm("docId")
 	if docId == "" {
@@ -227,7 +231,7 @@ func (s *Service) HandleQuery(c *gin.Context) {
 
 	index := c.PostForm("index")
 	if index == "" {
-		index = DefaultIndex
+		index = FileIndex
 	}
 
 	term := c.PostForm("query")

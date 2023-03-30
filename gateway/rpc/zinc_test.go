@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -21,7 +22,91 @@ const port = "1234"
 const username = "admin"
 const password = "User#123"
 
-const index = DefaultIndex
+const index = FileIndex
+
+func TestListIndex(t *testing.T) {
+	// indexName := "hightlight"
+	ctx := context.WithValue(context.Background(), zinc.ContextBasicAuth, zinc.BasicAuth{
+		UserName: username,
+		Password: password,
+	})
+
+	configuration := zinc.NewConfiguration()
+	configuration.Servers = zinc.ServerConfigurations{
+		zinc.ServerConfiguration{
+			URL: zincUrl,
+		},
+	}
+
+	apiClient := zinc.NewAPIClient(configuration)
+	resp, r, err := apiClient.Index.IndexNameList(ctx).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `Index.Exists``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `Exists`: map[string]interface{}
+	fmt.Fprintf(os.Stdout, "Response from `Index.Exists`: %v\n", resp)
+}
+
+func TestClientNewIndex(t *testing.T) {
+	indexName := "hightlight"
+	index := *zinc.NewMetaIndexSimple() // MetaIndexSimple | Index data
+	index.SetName(indexName)
+
+	ctx := context.WithValue(context.Background(), zinc.ContextBasicAuth, zinc.BasicAuth{
+		UserName: username,
+		Password: password,
+	})
+
+	configuration := zinc.NewConfiguration()
+	configuration.Servers = zinc.ServerConfigurations{
+		zinc.ServerConfiguration{
+			URL: zincUrl,
+		},
+	}
+
+	apiClient := zinc.NewAPIClient(configuration)
+	resp, r, err := apiClient.Index.Create(ctx).Data(index).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `Index.Create``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+	// response from `Create`: MetaHTTPResponseIndex
+	fmt.Fprintf(os.Stdout, "Response from `Index.Create`: %v\n", resp)
+	if r.StatusCode == 200 {
+		fmt.Fprintf(os.Stdout, "`Index.Create`: %v\n", resp.GetIndex())
+	} else {
+		e, _ := err.(*zinc.GenericOpenAPIError)
+		me, _ := e.Model().(zinc.MetaHTTPResponseError)
+		fmt.Fprintf(os.Stdout, "`Index.Create` error: %v\n", me.GetError())
+	}
+
+	mapping := *zinc.NewMetaMappings() // MetaMappings | Mapping
+
+	content := zinc.NewMetaProperty()
+	content.SetType("text")
+	content.SetIndex(true)
+	content.SetHighlightable(true)
+
+	mapping.SetProperties(map[string]zinc.MetaProperty{
+		"content": *content,
+	})
+
+	respSetmapping, rSetmapping, err := apiClient.Index.SetMapping(ctx, indexName).Mapping(mapping).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `Index.SetMapping``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", rSetmapping)
+	}
+	// response from `SetMapping`: MetaHTTPResponse
+	fmt.Fprintf(os.Stdout, "Response from `Index.SetMapping`: %v\n", respSetmapping)
+	if rSetmapping.StatusCode == 200 {
+		fmt.Fprintf(os.Stdout, "`Index.SetMapping`: %v\n", respSetmapping.GetMessage())
+	} else {
+		e, _ := err.(*zinc.GenericOpenAPIError)
+		me, _ := e.Model().(zinc.MetaHTTPResponseError)
+		fmt.Fprintf(os.Stdout, "`Index.SetMapping` error: %v\n", me.GetError())
+	}
+}
 
 func TestClientSearchV1(t *testing.T) { // string | Index
 	query := *zinc.NewV1ZincQuery() // V1ZincQuery | Query
@@ -58,6 +143,7 @@ func TestClientSearchV1(t *testing.T) { // string | Index
 }
 
 func TestClientSearchV2(t *testing.T) {
+	indexName := "hightlight"
 	// eg:
 	// {
 	// 	"query": {
@@ -75,8 +161,15 @@ func TestClientSearchV2(t *testing.T) {
 	// 	}
 	// }
 	query := *zinc.NewMetaZincQuery() // V1ZincQuery | Query
+	highlight := zinc.NewMetaHighlight()
+	highlightContent := zinc.NewMetaHighlight()
+	fragmentSize := int32(20)
+	highlightContent.FragmentSize = &fragmentSize
+	highlight.SetFields(map[string]zinc.MetaHighlight{"content": *highlightContent})
+	query.SetHighlight(*highlight)
+
 	matchQuery := *zinc.NewMetaMatchQuery()
-	matchQuery.SetQuery("Download")
+	matchQuery.SetQuery("身份证号")
 	subQuery := *zinc.NewMetaQuery()
 	subQuery.SetMatch(map[string]zinc.MetaMatchQuery{
 		"content": matchQuery,
@@ -100,15 +193,26 @@ func TestClientSearchV2(t *testing.T) {
 	}
 
 	apiClient := zinc.NewAPIClient(configuration)
-	resp, r, err := apiClient.Search.Search(ctx, index).Query(query).Execute()
+	resp, r, err := apiClient.Search.Search(ctx, indexName).Query(query).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `SearchApi.Search``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
+	// fmt.Fprintf(os.Stdout, "Full HTTP response: %v\n", r)
 	// response from `SearchV1`: V1SearchResponse
-	fmt.Fprintf(os.Stdout, "Response from `SearchApi.Search`: %+v\n", resp)
+	// fmt.Fprintf(os.Stdout, "Response from `SearchApi.Search`: %+v\n", resp)
+	// for _, hit := range resp.Hits.Hits {
+	// fmt.Printf("%v %v\n", hit.GetTimestamp(), hit.GetSource())
+	// }
 	for _, hit := range resp.Hits.Hits {
-		fmt.Printf("%v %v\n", hit.GetTimestamp(), hit.GetSource())
+		for _, highlightRes := range hit.Highlight {
+			// fmt.Printf("hightlight %v\n", highlightRes)
+			for _, hh := range highlightRes.([]interface{}) {
+				fmt.Println(reflect.TypeOf(hh).String())
+				fmt.Println(hh.(string))
+			}
+
+		}
 	}
 }
 

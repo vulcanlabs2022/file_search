@@ -14,6 +14,8 @@ import (
 	zinc "github.com/zinclabs/sdk-go-zincsearch"
 )
 
+const ContentFieldName = "content"
+
 // query = `{
 // 	"search_type": "match",
 // 	"query":
@@ -103,16 +105,107 @@ type Document struct {
 	Content  string `json:"content"`
 }
 
+type HightLight struct {
+	Cnt     int    `json:"cnt"`
+	Snippet string `json:"snippet"`
+}
+
 type QueryResult struct {
-	Index    string `json:"index"`
-	Where    string `json:"where"`
-	Name     string `json:"name"`
-	DocId    string `json:"docId"`
-	Created  int64  `json:"time"`
-	Content  string `json:"content"`
-	Type     string `json:"type"`
-	Size     int64  `json:"size"`
-	Modified int64  `json:"modified"`
+	Index       string       `json:"index"`
+	Where       string       `json:"where"`
+	Name        string       `json:"name"`
+	DocId       string       `json:"docId"`
+	Created     int64        `json:"time"`
+	Content     string       `json:"content"`
+	Type        string       `json:"type"`
+	Size        int64        `json:"size"`
+	Modified    int64        `json:"modified"`
+	HightLights []HightLight `json:"highlight"`
+}
+
+func (s *Service) zincRawQuery(indexName, term string) (*zinc.MetaSearchResponse, error) {
+	query := *zinc.NewMetaZincQuery()
+	highlight := zinc.NewMetaHighlight()
+	highlightContent := zinc.NewMetaHighlight()
+	highlight.SetFields(map[string]zinc.MetaHighlight{"content": *highlightContent})
+	query.SetHighlight(*highlight)
+
+	matchQuery := *zinc.NewMetaMatchQuery()
+	matchQuery.SetQuery(term)
+	subQuery := *zinc.NewMetaQuery()
+	subQuery.SetMatch(map[string]zinc.MetaMatchQuery{
+		"content": matchQuery,
+	})
+	boolQuery := *zinc.NewMetaBoolQuery()
+	boolQuery.SetShould([]zinc.MetaQuery{subQuery})
+	queryQuery := *zinc.NewMetaQuery()
+	queryQuery.SetBool(boolQuery)
+	query.SetQuery(queryQuery)
+
+	ctx := context.WithValue(context.Background(), zinc.ContextBasicAuth, zinc.BasicAuth{
+		UserName: s.username,
+		Password: s.password,
+	})
+
+	configuration := zinc.NewConfiguration()
+	configuration.Servers = zinc.ServerConfigurations{
+		zinc.ServerConfiguration{
+			URL: s.zincUrl,
+		},
+	}
+
+	apiClient := zinc.NewAPIClient(configuration)
+	resp, _, err := apiClient.Search.Search(ctx, indexName).Query(query).Execute()
+	if err != nil {
+		return nil, fmt.Errorf("error when calling `SearchApi.Search``: %v", err)
+	}
+	return resp, nil
+	// for _, hit := range resp.Hits.Hits {
+
+	// 	for _, highlightRes := range hit.Highlight {
+	// 		// fmt.Printf("hightlight %v\n", highlightRes)
+	// 		for _, hh := range highlightRes.([]interface{}) {
+	// 			fmt.Println(hh.(string))
+	// 		}
+	// 	}
+	// }
+}
+
+func getFileQueryResult(resp *zinc.MetaSearchResponse) ([]QueryResult, error) {
+	resultList := make([]QueryResult, 0)
+	for _, hit := range resp.Hits.Hits {
+		result := QueryResult{
+			Index:       FileIndex,
+			Where:       "",
+			Name:        "",
+			DocId:       "",
+			Created:     0,
+			Content:     "",
+			Type:        "",
+			Size:        0,
+			Modified:    0,
+			HightLights: []HightLight{},
+		}
+		if where, ok := hit.Fields["where"].(string); ok {
+			result.Where = where
+		}
+		if name, ok := hit.Fields["name"].(string); ok {
+			result.Name = name
+		}
+		result.DocId = *hit.Id
+		if size, ok := hit.Fields["size"].(int64); ok {
+			result.Size = size
+		}
+
+		for _, highlightRes := range hit.Highlight {
+			// fmt.Printf("hightlight %v\n", highlightRes)
+			for _, hh := range highlightRes.([]interface{}) {
+				fmt.Println(hh.(string))
+
+			}
+		}
+	}
+
 }
 
 func (s *Service) zincQuery(query QueryReq, index string) ([]QueryResult, error) {
@@ -163,4 +256,121 @@ func (s *Service) zincQuery(query QueryReq, index string) ([]QueryResult, error)
 		}
 	}
 	return results, nil
+}
+
+func (s *Service) listIndex() ([]string, error) {
+	ctx := context.WithValue(context.Background(), zinc.ContextBasicAuth, zinc.BasicAuth{
+		UserName: s.username,
+		Password: s.password,
+	})
+	configuration := zinc.NewConfiguration()
+	configuration.Servers = zinc.ServerConfigurations{
+		zinc.ServerConfiguration{
+			URL: s.zincUrl,
+		},
+	}
+	apiClient := zinc.NewAPIClient(configuration)
+	resp, r, err := apiClient.Index.IndexNameList(ctx).Execute()
+	if err != nil {
+		return nil, err
+	}
+	if r.StatusCode != 200 {
+		return nil, fmt.Errorf("Full HTTP response: %v\n", r)
+	}
+	return resp, nil
+}
+
+func (s *Service) createIndex(indexName string) error {
+	index := *zinc.NewMetaIndexSimple()
+	index.SetName(indexName)
+
+	ctx := context.WithValue(context.Background(), zinc.ContextBasicAuth, zinc.BasicAuth{
+		UserName: s.username,
+		Password: s.password,
+	})
+
+	configuration := zinc.NewConfiguration()
+	configuration.Servers = zinc.ServerConfigurations{
+		zinc.ServerConfiguration{
+			URL: s.zincUrl,
+		},
+	}
+
+	apiClient := zinc.NewAPIClient(configuration)
+	_, r, err := apiClient.Index.Create(ctx).Data(index).Execute()
+	if err != nil {
+		return err
+	}
+	// response from `Create`: MetaHTTPResponseIndex
+	if r.StatusCode != 200 {
+		e, _ := err.(*zinc.GenericOpenAPIError)
+		me, _ := e.Model().(zinc.MetaHTTPResponseError)
+		return fmt.Errorf("`Index.Create` error: %v", me.GetError())
+	}
+	return nil
+}
+
+func (s *Service) setupIndex() error {
+	existIndexNameList, err := s.listIndex()
+	if err != nil {
+		return err
+	}
+	nameMap := make(map[string]bool)
+	for _, existName := range existIndexNameList {
+		nameMap[existName] = true
+	}
+
+	expectIndexList := []string{RssIndex, FileIndex}
+	for _, indexName := range expectIndexList {
+		if _, ok := nameMap[indexName]; !ok {
+			err = s.createIndex(RssIndex)
+			if err != nil {
+				return err
+			}
+		}
+		err = s.setIndexMapping(RssIndex)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+//add highlightable filed "content" in index map setting
+func (s *Service) setIndexMapping(indexName string) error {
+	ctx := context.WithValue(context.Background(), zinc.ContextBasicAuth, zinc.BasicAuth{
+		UserName: s.username,
+		Password: s.password,
+	})
+
+	configuration := zinc.NewConfiguration()
+	configuration.Servers = zinc.ServerConfigurations{
+		zinc.ServerConfiguration{
+			URL: s.zincUrl,
+		},
+	}
+
+	apiClient := zinc.NewAPIClient(configuration)
+
+	mapping := *zinc.NewMetaMappings() // MetaMappings | Mapping
+
+	content := zinc.NewMetaProperty()
+	content.SetType("text")
+	content.SetIndex(true)
+	content.SetHighlightable(true)
+
+	mapping.SetProperties(map[string]zinc.MetaProperty{
+		ContentFieldName: *content,
+	})
+
+	_, r, err := apiClient.Index.SetMapping(ctx, indexName).Mapping(mapping).Execute()
+	if err != nil {
+		return err
+	}
+	if r.StatusCode != 200 {
+		e, _ := err.(*zinc.GenericOpenAPIError)
+		me, _ := e.Model().(zinc.MetaHTTPResponseError)
+		return fmt.Errorf("`Index.SetMapping` error: %v", me.GetError())
+	}
+	return nil
 }

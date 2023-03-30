@@ -53,6 +53,10 @@ func Start(ctx *cli.Context) {
 	if url == "" {
 		url = "http://localhost:4080"
 	}
+	watchDir := os.Getenv("WATCH_DIR")
+	if watchDir == "" {
+		watchDir = "/data"
+	}
 	port := os.Getenv("W_PORT")
 	if port == "" {
 		port = DefaultPort

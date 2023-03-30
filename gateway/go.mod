@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/gin-gonic/gin v1.9.0
 	github.com/google/uuid v1.3.0
+	github.com/tywkeene/go-fsevents v0.2.0
 	github.com/zinclabs/sdk-go-zincsearch v0.3.3
 	gopkg.in/urfave/cli.v1 v1.20.0
 )

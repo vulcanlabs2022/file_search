@@ -15,8 +15,12 @@ var ParseAble = map[string]bool{
 	".pdf":  true,
 }
 
+func GetTypeFromName(filename string) string {
+	return strings.ToLower(path.Ext(filename))
+}
+
 func ParseDoc(f io.Reader, filename string) (string, error) {
-	if _, ok := ParseAble[strings.ToLower(path.Ext(filename))]; !ok {
+	if _, ok := ParseAble[GetTypeFromName(filename)]; !ok {
 		data, err := ioutil.ReadAll(f)
 		if err != nil {
 			return "", err
