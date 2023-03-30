@@ -109,9 +109,7 @@ func (s *Service) HandleInput(c *gin.Context) {
 	defer func() {
 		if rep.ResultCode == Success {
 			c.JSON(http.StatusOK, rep)
-		} else {
-			c.JSON(http.StatusInternalServerError, rep)
-		}
+		} 
 	}()
 
 	index := c.PostForm("index")
@@ -133,6 +131,7 @@ func (s *Service) HandleInput(c *gin.Context) {
 		if err != nil {
 			log.Error().Msgf("open file err %v", err)
 			rep.ResultMsg = err.Error()
+			c.JSON(http.StatusBadRequest, rep)
 			return
 		}
 		filename = fileHeader.Filename
@@ -141,6 +140,7 @@ func (s *Service) HandleInput(c *gin.Context) {
 		if err != nil {
 			log.Error().Msgf("parse file error %v", err)
 			rep.ResultMsg = err.Error()
+			c.JSON(http.StatusBadRequest, rep)
 			return
 		}
 
@@ -150,6 +150,7 @@ func (s *Service) HandleInput(c *gin.Context) {
 	if content == "" {
 		log.Error().Msgf("content empty")
 		rep.ResultMsg = "content empty"
+		c.JSON(http.StatusBadRequest, rep)
 		return
 	}
 
@@ -166,6 +167,7 @@ func (s *Service) HandleInput(c *gin.Context) {
 	if err != nil {
 		rep.ResultCode = ErrorCodeInput
 		rep.ResultMsg = err.Error()
+		c.JSON(http.StatusBadRequest, rep)
 		return
 	}
 	rep.ResultCode = Success
@@ -180,9 +182,7 @@ func (s *Service) HandleDelete(c *gin.Context) {
 	defer func() {
 		if rep.ResultCode == Success {
 			c.JSON(http.StatusOK, rep)
-		} else {
-			c.JSON(http.StatusInternalServerError, rep)
-		}
+		} 
 	}()
 
 	index := c.PostForm("index")
@@ -193,12 +193,14 @@ func (s *Service) HandleDelete(c *gin.Context) {
 	if docId == "" {
 		rep.ResultCode = ErrorCodeDelete
 		rep.ResultMsg = fmt.Sprintf("docId empty")
+		c.JSON(http.StatusBadRequest, rep)
 		return
 	}
 	_, err := s.zincDelete(docId, index)
 	if err != nil {
 		rep.ResultCode = ErrorCodeDelete
 		rep.ResultMsg = err.Error()
+		c.JSON(http.StatusBadRequest, rep)
 		return
 	}
 	rep.ResultCode = Success
@@ -217,11 +219,10 @@ func (s *Service) HandleQuery(c *gin.Context) {
 		ResultCode: ErrorCodeUnknow,
 		ResultMsg:  "",
 	}
+
 	defer func() {
 		if rep.ResultCode == Success {
 			c.JSON(http.StatusOK, rep)
-		} else {
-			c.JSON(http.StatusInternalServerError, rep)
 		}
 	}()
 
@@ -233,6 +234,7 @@ func (s *Service) HandleQuery(c *gin.Context) {
 	term := c.PostForm("query")
 	if term == "" {
 		rep.ResultMsg = "term empty"
+		c.JSON(http.StatusBadRequest, rep)
 		return
 	}
 
@@ -252,6 +254,7 @@ func (s *Service) HandleQuery(c *gin.Context) {
 
 	if err != nil {
 		rep.ResultMsg = err.Error()
+		c.JSON(http.StatusNotFound, rep)
 		return
 	}
 
