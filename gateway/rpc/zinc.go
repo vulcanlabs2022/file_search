@@ -87,6 +87,26 @@ type QueryResult struct {
 	HightLights []string `json:"highlight"`
 }
 
+func (s *Service) zincQueryByPath(indexName, path string) (*zinc.MetaSearchResponse, error) {
+	query := *zinc.NewMetaZincQuery()
+	termPathQuery := *zinc.NewMetaTermQuery()
+	termPathQuery.SetValue(path)
+	queryQuery := *zinc.NewMetaQuery()
+	queryQuery.SetTerm(map[string]zinc.MetaTermQuery{
+		"where": termPathQuery,
+	})
+	query.SetQuery(queryQuery)
+	ctx := context.WithValue(context.Background(), zinc.ContextBasicAuth, zinc.BasicAuth{
+		UserName: s.username,
+		Password: s.password,
+	})
+	resp, _, err := s.apiClient.Search.Search(ctx, indexName).Query(query).Execute()
+	if err != nil {
+		return nil, fmt.Errorf("error when calling `SearchApi.Search``: %v", err)
+	}
+	return resp, nil
+}
+
 func (s *Service) zincRawQuery(indexName, term string) (*zinc.MetaSearchResponse, error) {
 	query := *zinc.NewMetaZincQuery()
 	highlight := zinc.NewMetaHighlight()
@@ -244,8 +264,17 @@ func (s *Service) setIndexMapping(indexName string) error {
 	content.SetAggregatable(false)
 	content.SetSortable(false)
 
+	where := zinc.NewMetaProperty()
+	where.SetType("text")
+	where.SetIndex(true)
+	where.SetHighlightable(false)
+	where.SetAggregatable(false)
+	where.SetAnalyzer("whitespace")
+	content.SetStore(false)
+
 	mapping.SetProperties(map[string]zinc.MetaProperty{
 		ContentFieldName: *content,
+		"where":          *where,
 	})
 
 	_, r, err := s.apiClient.Index.SetMapping(ctx, indexName).Mapping(mapping).Execute()

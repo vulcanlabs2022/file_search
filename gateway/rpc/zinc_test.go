@@ -2,18 +2,15 @@ package rpc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
-	"github.com/tidwall/gjson"
 	zinc "github.com/zinclabs/sdk-go-zincsearch"
 )
 
@@ -43,11 +40,25 @@ func initTestService() Service {
 
 func TestQueryFile(t *testing.T) {
 	service := initTestService()
-	content, err := service.getContentByDocId(FileIndex, "2f7091bf-6abe-4ae9-9705-9da434a99a83")
+	content, err := service.getContentByDocId(FileIndex, "8c1ae2c7-33df-455a-870a-a41ee25dbcc0")
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(content)
+}
+
+func TestQueryPath(t *testing.T) {
+	service := initTestService()
+	res, err := service.zincQueryByPath(FileIndex, "/Users/houmingyu/Documents/web5/wzinc/rpc/zinc_test.go")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%v", res)
+	doc, err := getFileQueryResult(res)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%v", doc)
 }
 
 func TestSetupIndex(t *testing.T) {
@@ -80,66 +91,6 @@ func TestListIndex(t *testing.T) {
 	}
 	// response from `Exists`: map[string]interface{}
 	fmt.Fprintf(os.Stdout, "Response from `Index.Exists`: %v\n", resp)
-}
-
-func TestClientNewIndex(t *testing.T) {
-	indexName := "Files"
-	index := *zinc.NewMetaIndexSimple() // MetaIndexSimple | Index data
-	index.SetName(indexName)
-
-	ctx := context.WithValue(context.Background(), zinc.ContextBasicAuth, zinc.BasicAuth{
-		UserName: username,
-		Password: password,
-	})
-
-	configuration := zinc.NewConfiguration()
-	configuration.Servers = zinc.ServerConfigurations{
-		zinc.ServerConfiguration{
-			URL: zincUrl,
-		},
-	}
-
-	apiClient := zinc.NewAPIClient(configuration)
-	resp, r, err := apiClient.Index.Create(ctx).Data(index).Execute()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `Index.Create``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
-	}
-	// response from `Create`: MetaHTTPResponseIndex
-	fmt.Fprintf(os.Stdout, "Response from `Index.Create`: %v\n", resp)
-	if r.StatusCode == 200 {
-		fmt.Fprintf(os.Stdout, "`Index.Create`: %v\n", resp.GetIndex())
-	} else {
-		e, _ := err.(*zinc.GenericOpenAPIError)
-		me, _ := e.Model().(zinc.MetaHTTPResponseError)
-		fmt.Fprintf(os.Stdout, "`Index.Create` error: %v\n", me.GetError())
-	}
-
-	mapping := *zinc.NewMetaMappings() // MetaMappings | Mapping
-
-	content := zinc.NewMetaProperty()
-	content.SetType("text")
-	content.SetIndex(true)
-	content.SetHighlightable(true)
-
-	mapping.SetProperties(map[string]zinc.MetaProperty{
-		"content": *content,
-	})
-
-	respSetmapping, rSetmapping, err := apiClient.Index.SetMapping(ctx, indexName).Mapping(mapping).Execute()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when calling `Index.SetMapping``: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", rSetmapping)
-	}
-	// response from `SetMapping`: MetaHTTPResponse
-	fmt.Fprintf(os.Stdout, "Response from `Index.SetMapping`: %v\n", respSetmapping)
-	if rSetmapping.StatusCode == 200 {
-		fmt.Fprintf(os.Stdout, "`Index.SetMapping`: %v\n", respSetmapping.GetMessage())
-	} else {
-		e, _ := err.(*zinc.GenericOpenAPIError)
-		me, _ := e.Model().(zinc.MetaHTTPResponseError)
-		fmt.Fprintf(os.Stdout, "`Index.SetMapping` error: %v\n", me.GetError())
-	}
 }
 
 func TestClientSearchV1(t *testing.T) { // string | Index
@@ -283,35 +234,31 @@ func TestDelete(t *testing.T) {
 	fmt.Println(string(res))
 }
 func TestQuery(t *testing.T) {
-	res, err := RpcServer.zincQuery(index, "test")
+	url := zincUrl + "/api/_analyze"
+	req, err := http.NewRequest("POST", url, strings.NewReader(`{
+		"analyzer" : "keyword",
+		"text" : "/Users/houmingyu/Documents/web5/wzinc/rpc/zinc_test.go"
+	  }`))
 	if err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
-	fmt.Println(fmt.Sprintf("%v", res))
-}
+	req.SetBasicAuth(username, password)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36")
 
-func TestPost(t *testing.T) {
-	client := &http.Client{Timeout: time.Second * time.Duration(10)}
-	resp, err := client.PostForm("http://127.0.0.1:6317/api/query", url.Values{"query": []string{"apiClient"}})
-	if resp == nil {
-		return
-	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
 	defer resp.Body.Close()
-	payloads, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatal(err)
+	if resp.StatusCode != 200 {
+		panic(err)
 	}
-	// fmt.Println(string(payloads))
-	resultJson := gjson.Get(string(payloads), "data").String()
-	var result QueryResp
-	err = json.Unmarshal([]byte(resultJson), &result)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
-	fmt.Printf("%v", result)
+	fmt.Println(string(body))
 }
 
 func TestFormatFilename(t *testing.T) {
