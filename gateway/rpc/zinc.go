@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 	"wzinc/parser"
 
 	"github.com/google/uuid"
@@ -79,7 +80,8 @@ type QueryResult struct {
 	Where       string   `json:"where"`
 	Name        string   `json:"name"`
 	DocId       string   `json:"docId"`
-	Created     int64    `json:"time"`
+	Created     int64    `json:"created"`
+	Updated     int64    `json:"updated"`
 	Content     string   `json:"content"`
 	Type        string   `json:"type"`
 	Size        int64    `json:"size"`
@@ -157,6 +159,9 @@ func getFileQueryResult(resp *zinc.MetaSearchResponse) ([]QueryResult, error) {
 		result.DocId = *hit.Id
 		if created, ok := hit.Source["created"].(float64); ok {
 			result.Created = int64(created)
+		}
+		if updated, ok := hit.Source["updated"].(float64); ok {
+			result.Updated = int64(updated)
 		}
 		if content, ok := hit.Source["content"].(string); ok {
 			result.Content = content
@@ -310,4 +315,38 @@ func (s *Service) getContentByDocId(index, docId string) (string, error) {
 	}
 	content := gjson.Get(string(body), "_source.content").String()
 	return content, nil
+}
+
+func (s *Service) updateFileContentByPath(index, path, newContent string) (string, error) {
+	res, err := s.zincQueryByPath(index, path)
+	if err != nil {
+		return "", err
+	}
+	docData, err := getFileQueryResult(res)
+	if err != nil {
+		return "", err
+	}
+	if len(docData) == 0 {
+		return "", err
+	}
+	oldDoc := docData[0]
+	newDoc := map[string]interface{}{
+		"name":        oldDoc.Name,
+		"where":       oldDoc.Where,
+		"content":     newContent,
+		"size":        len([]byte(newContent)),
+		"created":     oldDoc.Created,
+		"updated":     time.Now().Unix(),
+		"format_name": oldDoc.Name,
+	}
+
+	ctx := context.WithValue(context.Background(), zinc.ContextBasicAuth, zinc.BasicAuth{
+		UserName: s.username,
+		Password: s.password,
+	})
+	resp, _, err := s.apiClient.Document.Update(ctx, index, oldDoc.DocId).Document(newDoc).Execute()
+	if err != nil {
+		return "", err
+	}
+	return resp.GetId(), nil
 }

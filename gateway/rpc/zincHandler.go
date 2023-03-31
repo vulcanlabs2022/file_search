@@ -75,6 +75,7 @@ func (s *Service) HandleInput(c *gin.Context) {
 		"content":     content,
 		"size":        size,
 		"created":     time.Now().Unix(),
+		"updated":     time.Now().Unix(),
 		"format_name": formatFilename(filename),
 	}
 
