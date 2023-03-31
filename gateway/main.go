@@ -69,8 +69,9 @@ func Start(ctx *cli.Context) {
 	if password == "" {
 		password = "User#123"
 	}
+	modelUri := os.Getenv("ModelUri")
 
-	rpc.InitRpcService(url, port, username, password)
+	rpc.InitRpcService(url, port, username, password, map[string]string{"model": modelUri})
 	contx := context.Background()
 	err := rpc.RpcServer.Start(contx)
 	if err != nil {

@@ -2,21 +2,14 @@ package rpc
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"strconv"
-	"wzinc/parser"
-
+	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
+	zinc "github.com/zinclabs/sdk-go-zincsearch"
 	"net/http"
-
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/rs/zerolog/log"
-
-	"github.com/gin-gonic/gin"
-	zinc "github.com/zinclabs/sdk-go-zincsearch"
+	selfdriving "wzinc/ai/self-driving"
 )
 
 const InternalError = "internal server error"
@@ -48,16 +41,23 @@ var client *http.Client
 
 var RpcServer *Service
 
+var maxPendingLength = 30
+
 type Service struct {
-	port      string
-	zincUrl   string
-	username  string
-	password  string
-	apiClient *zinc.APIClient
+	port             string
+	zincUrl          string
+	username         string
+	password         string
+	apiClient        *zinc.APIClient
+	bsApiClient      map[string]*selfdriving.Client //modelname -> client
+	relaysStateLock  sync.RWMutex
+	questionCh       chan (pendingQuestion)
+	maxPendingLength int
 }
 
-func InitRpcService(url, port, username, password string) {
+func InitRpcService(url, port, username, password string, bsModelConfig map[string]string) {
 	once.Do(func() {
+		//init zinc api client
 		client = &http.Client{Timeout: time.Minute * 3}
 		configuration := zinc.NewConfiguration()
 		configuration.Servers = zinc.ServerConfigurations{
@@ -66,15 +66,27 @@ func InitRpcService(url, port, username, password string) {
 			},
 		}
 		apiClient := zinc.NewAPIClient(configuration)
+
 		RpcServer = &Service{
-			port:      port,
-			zincUrl:   url,
-			username:  username,
-			password:  password,
-			apiClient: apiClient,
+			port:             port,
+			zincUrl:          url,
+			username:         username,
+			password:         password,
+			apiClient:        apiClient,
+			bsApiClient:      make(map[string]*selfdriving.Client),
+			questionCh:       make(chan pendingQuestion),
+			maxPendingLength: maxPendingLength,
 		}
+
+		//setup zinc index
 		if err := RpcServer.setupIndex(); err != nil {
 			panic(err)
+		}
+
+		//load ai model
+		for modelName, url := range bsModelConfig {
+			log.Info().Msgf("init model name:%s url:%s", modelName, url)
+			RpcServer.bsApiClient[modelName] = selfdriving.NewClient(url, modelName, context.Background())
 		}
 	})
 }
@@ -90,7 +102,16 @@ func (*LoggerMy) Write(p []byte) (n int, err error) {
 	return
 }
 
+type Resp struct {
+	ResultCode int    `json:"code"`
+	ResultMsg  string `json:"data"`
+}
+
 func (c *Service) Start(ctx context.Context) error {
+	//start ai question service
+	postQuestionsContext, _ := context.WithCancel(ctx)
+	go c.StartChatService(postQuestionsContext)
+
 	//start gin
 	gin.DefaultWriter = &LoggerMy{}
 	r := gin.Default()
@@ -100,175 +121,14 @@ func (c *Service) Start(ctx context.Context) error {
 	r.GET("/healthcheck", func(c *gin.Context) {
 		c.String(http.StatusOK, "ok")
 	})
-	r.POST("/api/input", c.HandleInput)
-	r.POST("/api/delete", c.HandleDelete)
-	r.POST("/api/query", c.HandleQuery)
+	r.POST("/api/file/input", c.HandleInput)
+	r.POST("/api/file/delete", c.HandleDelete)
+	r.POST("/api/file/query", c.HandleQuery)
+	r.POST("/api/ai/question", c.HandleQuestion)
+	r.GET("/api/refresh", HandleRefresh)
 	address := "0.0.0.0:" + c.port
 
 	go r.Run(address)
 	log.Info().Msgf("start rpc on port:%s", c.port)
 	return nil
-}
-
-type Resp struct {
-	ResultCode int    `json:"code"`
-	ResultMsg  string `json:"data"`
-}
-
-func (s *Service) HandleInput(c *gin.Context) {
-	rep := Resp{
-		ResultCode: ErrorCodeUnknow,
-		ResultMsg:  "",
-	}
-	defer func() {
-		if rep.ResultCode == Success {
-			c.JSON(http.StatusOK, rep)
-		}
-	}()
-
-	index := c.PostForm("index")
-	if index == "" {
-		index = FileIndex
-	}
-
-	filename := c.PostForm("filename")
-
-	content := c.PostForm("content")
-
-	filePath := c.PostForm("path")
-
-	size := int64(len([]byte(content)))
-
-	fileHeader, err := c.FormFile("doc")
-	if err == nil {
-		file, err := fileHeader.Open()
-		if err != nil {
-			log.Error().Msgf("open file err %v", err)
-			rep.ResultMsg = err.Error()
-			c.JSON(http.StatusBadRequest, rep)
-			return
-		}
-		filename = fileHeader.Filename
-		defer file.Close()
-		content, err = parser.ParseDoc(file, filename)
-		if err != nil {
-			log.Error().Msgf("parse file error %v", err)
-			rep.ResultMsg = err.Error()
-			c.JSON(http.StatusBadRequest, rep)
-			return
-		}
-
-		size = fileHeader.Size
-	}
-
-	if content == "" {
-		log.Warn().Msgf("content empty")
-	}
-
-	doc := map[string]interface{}{
-		"name":        filename,
-		"where":       filePath,
-		"content":     content,
-		"size":        size,
-		"created":     time.Now().Unix(),
-		"format_name": formatFilename(filename),
-	}
-
-	id, err := s.zincInput(index, doc)
-	if err != nil {
-		rep.ResultCode = ErrorCodeInput
-		rep.ResultMsg = err.Error()
-		c.JSON(http.StatusBadRequest, rep)
-		return
-	}
-	rep.ResultCode = Success
-	rep.ResultMsg = string(id)
-}
-
-func (s *Service) HandleDelete(c *gin.Context) {
-	rep := Resp{
-		ResultCode: ErrorCodeUnknow,
-		ResultMsg:  "",
-	}
-	defer func() {
-		if rep.ResultCode == Success {
-			c.JSON(http.StatusOK, rep)
-		}
-	}()
-
-	index := c.PostForm("index")
-	if index == "" {
-		index = FileIndex
-	}
-	docId := c.PostForm("docId")
-	if docId == "" {
-		rep.ResultCode = ErrorCodeDelete
-		rep.ResultMsg = fmt.Sprintf("docId empty")
-		c.JSON(http.StatusBadRequest, rep)
-		return
-	}
-	_, err := s.zincDelete(docId, index)
-	if err != nil {
-		rep.ResultCode = ErrorCodeDelete
-		rep.ResultMsg = err.Error()
-		c.JSON(http.StatusBadRequest, rep)
-		return
-	}
-	rep.ResultCode = Success
-	rep.ResultMsg = docId
-}
-
-type QueryResp struct {
-	Count  int           `json:"count"`
-	Offset int           `json:"offset"`
-	Limit  int           `json:"limit"`
-	Items  []QueryResult `json:"items"`
-}
-
-func (s *Service) HandleQuery(c *gin.Context) {
-	rep := Resp{
-		ResultCode: ErrorCodeUnknow,
-		ResultMsg:  "",
-	}
-
-	defer func() {
-		if rep.ResultCode == Success {
-			c.JSON(http.StatusOK, rep)
-		}
-	}()
-
-	index := c.PostForm("index")
-	if index == "" {
-		index = FileIndex
-	}
-
-	term := c.PostForm("query")
-	if term == "" {
-		rep.ResultMsg = "term empty"
-		c.JSON(http.StatusBadRequest, rep)
-		return
-	}
-
-	maxResults, err := strconv.Atoi(c.PostForm("limit"))
-	if err != nil {
-		maxResults = DefaultMaxResult
-	}
-
-	results, err := s.zincQuery(index, term)
-
-	if err != nil {
-		rep.ResultMsg = err.Error()
-		c.JSON(http.StatusNotFound, rep)
-		return
-	}
-
-	rep.ResultCode = Success
-	response := QueryResp{
-		Count:  len(results),
-		Offset: 0,
-		Limit:  maxResults,
-		Items:  results,
-	}
-	repMsg, _ := json.Marshal(&response)
-	rep.ResultMsg = string(repMsg)
 }

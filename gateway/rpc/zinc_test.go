@@ -24,7 +24,7 @@ const password = "User#123"
 
 const index = FileIndex
 
-func TestSetupIndex(t *testing.T) {
+func initTestService() Service {
 	configuration := zinc.NewConfiguration()
 	configuration.Servers = zinc.ServerConfigurations{
 		zinc.ServerConfiguration{
@@ -32,14 +32,27 @@ func TestSetupIndex(t *testing.T) {
 		},
 	}
 	apiClient := zinc.NewAPIClient(configuration)
-	service := Service{
+	return Service{
 		port:      port,
 		zincUrl:   zincUrl,
 		username:  username,
 		password:  password,
 		apiClient: apiClient,
 	}
-	err := service.createIndex("test")
+}
+
+func TestQueryFile(t *testing.T) {
+	service := initTestService()
+	content, err := service.getContentByDocId(FileIndex, "2f7091bf-6abe-4ae9-9705-9da434a99a83")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(content)
+}
+
+func TestSetupIndex(t *testing.T) {
+	service := initTestService()
+	err := service.setupIndex()
 	if err != nil {
 		panic(err)
 	}

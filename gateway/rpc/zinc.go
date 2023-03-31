@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
+	"github.com/tidwall/gjson"
 	zinc "github.com/zinclabs/sdk-go-zincsearch"
 )
 
@@ -257,4 +258,27 @@ func (s *Service) setIndexMapping(indexName string) error {
 		return fmt.Errorf("`Index.SetMapping` error: %v", me.GetError())
 	}
 	return nil
+}
+
+func (s *Service) getContentByDocId(index, docId string) (string, error) {
+	url := s.zincUrl + "/api/" + index + "/_doc/" + docId
+	req, err := http.NewRequest("GET", url, strings.NewReader(""))
+	if err != nil {
+		return "", err
+	}
+	req.SetBasicAuth(s.username, s.password)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	content := gjson.Get(string(body), "_source.content").String()
+	return content, nil
 }
