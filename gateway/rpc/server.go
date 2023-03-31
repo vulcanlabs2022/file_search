@@ -16,6 +16,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/gin-gonic/gin"
+	zinc "github.com/zinclabs/sdk-go-zincsearch"
 )
 
 const InternalError = "internal server error"
@@ -37,7 +38,7 @@ var SessionCookieName = "session_id"
 
 var Host = "127.0.0.1"
 
-const FileIndex = "terminus"
+const FileIndex = "Files"
 const RssIndex = "Rss"
 const DefaultMaxResult = 10
 
@@ -48,20 +49,29 @@ var client *http.Client
 var RpcServer *Service
 
 type Service struct {
-	port     string
-	zincUrl  string
-	username string
-	password string
+	port      string
+	zincUrl   string
+	username  string
+	password  string
+	apiClient *zinc.APIClient
 }
 
 func InitRpcService(url, port, username, password string) {
 	once.Do(func() {
 		client = &http.Client{Timeout: time.Minute * 3}
+		configuration := zinc.NewConfiguration()
+		configuration.Servers = zinc.ServerConfigurations{
+			zinc.ServerConfiguration{
+				URL: url,
+			},
+		}
+		apiClient := zinc.NewAPIClient(configuration)
 		RpcServer = &Service{
-			port:     port,
-			zincUrl:  url,
-			username: username,
-			password: password,
+			port:      port,
+			zincUrl:   url,
+			username:  username,
+			password:  password,
+			apiClient: apiClient,
 		}
 		if err := RpcServer.setupIndex(); err != nil {
 			panic(err)
@@ -113,7 +123,7 @@ func (s *Service) HandleInput(c *gin.Context) {
 	defer func() {
 		if rep.ResultCode == Success {
 			c.JSON(http.StatusOK, rep)
-		} 
+		}
 	}()
 
 	index := c.PostForm("index")
@@ -152,10 +162,7 @@ func (s *Service) HandleInput(c *gin.Context) {
 	}
 
 	if content == "" {
-		log.Error().Msgf("content empty")
-		rep.ResultMsg = "content empty"
-		c.JSON(http.StatusBadRequest, rep)
-		return
+		log.Warn().Msgf("content empty")
 	}
 
 	doc := map[string]interface{}{
@@ -186,7 +193,7 @@ func (s *Service) HandleDelete(c *gin.Context) {
 	defer func() {
 		if rep.ResultCode == Success {
 			c.JSON(http.StatusOK, rep)
-		} 
+		}
 	}()
 
 	index := c.PostForm("index")
@@ -247,14 +254,7 @@ func (s *Service) HandleQuery(c *gin.Context) {
 		maxResults = DefaultMaxResult
 	}
 
-	results, err := s.zincQuery(QueryReq{
-		SearchType: "match",
-		Query: Query{
-			Term: term,
-		},
-		From:      0,
-		MaxResult: maxResults,
-	}, index)
+	results, err := s.zincQuery(index, term)
 
 	if err != nil {
 		rep.ResultMsg = err.Error()

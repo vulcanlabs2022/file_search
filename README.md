@@ -42,7 +42,7 @@ code为0则成功，data为返回信息。小于0为错误，data为错误信息
 
 | 请求字段 | 类型     | 备注                             |
 | -------- | -------- | -------------------------------- |
-| index    | string   | 索引名（可选，默认为terminus）  |
+| index    | string   | 索引名（可选，默认为Files）  |
 | doc      | file文件 | 文件上传                         |
 | path     | string   | 文件路径                         |
 | filename | string   | 文件名（可选，默认为上传文件名） |
@@ -65,7 +65,7 @@ code为0则成功，data为返回信息。小于0为错误，data为错误信息
 
 | 请求字段 | 类型   | 备注                            |
 | -------- | ------ | ------------------------------- |
-| index    | string | 索引名（可选，默认为terminus） |
+| index    | string | 索引名（可选，默认为Files） |
 | docId    | string | 文件编号 DocID                  |
 
 #### 返回：
@@ -83,7 +83,7 @@ code为0则成功，data为返回信息。小于0为错误，data为错误信息
 
 | 请求字段 | 类型   | 备注                            |
 | -------- | ------ | ------------------------------- |
-| index    | string | 索引名（可选，默认为terminus） |
+| index    | string | 索引名（可选，默认为Files） |
 | query    | string | 查询文本                        |
 | limit    | int    | 最大回复数 （暂时不支持分页）   |
 

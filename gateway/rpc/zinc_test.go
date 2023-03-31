@@ -24,6 +24,27 @@ const password = "User#123"
 
 const index = FileIndex
 
+func TestSetupIndex(t *testing.T) {
+	configuration := zinc.NewConfiguration()
+	configuration.Servers = zinc.ServerConfigurations{
+		zinc.ServerConfiguration{
+			URL: zincUrl,
+		},
+	}
+	apiClient := zinc.NewAPIClient(configuration)
+	service := Service{
+		port:      port,
+		zincUrl:   zincUrl,
+		username:  username,
+		password:  password,
+		apiClient: apiClient,
+	}
+	err := service.createIndex("test")
+	if err != nil {
+		panic(err)
+	}
+}
+
 func TestListIndex(t *testing.T) {
 	// indexName := "hightlight"
 	ctx := context.WithValue(context.Background(), zinc.ContextBasicAuth, zinc.BasicAuth{
@@ -49,7 +70,7 @@ func TestListIndex(t *testing.T) {
 }
 
 func TestClientNewIndex(t *testing.T) {
-	indexName := "hightlight"
+	indexName := "Files"
 	index := *zinc.NewMetaIndexSimple() // MetaIndexSimple | Index data
 	index.SetName(indexName)
 
@@ -198,12 +219,6 @@ func TestClientSearchV2(t *testing.T) {
 		fmt.Fprintf(os.Stderr, "Error when calling `SearchApi.Search``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
 	}
-	// fmt.Fprintf(os.Stdout, "Full HTTP response: %v\n", r)
-	// response from `SearchV1`: V1SearchResponse
-	// fmt.Fprintf(os.Stdout, "Response from `SearchApi.Search`: %+v\n", resp)
-	// for _, hit := range resp.Hits.Hits {
-	// fmt.Printf("%v %v\n", hit.GetTimestamp(), hit.GetSource())
-	// }
 	for _, hit := range resp.Hits.Hits {
 		for _, highlightRes := range hit.Highlight {
 			// fmt.Printf("hightlight %v\n", highlightRes)
@@ -255,14 +270,7 @@ func TestDelete(t *testing.T) {
 	fmt.Println(string(res))
 }
 func TestQuery(t *testing.T) {
-	res, err := RpcServer.zincQuery(QueryReq{
-		SearchType: "querystring",
-		Query: Query{
-			Term: "zinc_test",
-		},
-		From:      0,
-		MaxResult: 10,
-	}, index)
+	res, err := RpcServer.zincQuery(index, "test")
 	if err != nil {
 		t.Fatal(err)
 	}

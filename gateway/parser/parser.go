@@ -13,6 +13,7 @@ var ParseAble = map[string]bool{
 	".doc":  true,
 	".docx": true,
 	".pdf":  true,
+	".txt":  true,
 }
 
 func GetTypeFromName(filename string) string {
@@ -20,7 +21,11 @@ func GetTypeFromName(filename string) string {
 }
 
 func ParseDoc(f io.Reader, filename string) (string, error) {
-	if _, ok := ParseAble[GetTypeFromName(filename)]; !ok {
+	fileType := GetTypeFromName(filename)
+	if _, ok := ParseAble[fileType]; !ok {
+		return "", nil
+	}
+	if fileType == ".txt" {
 		data, err := ioutil.ReadAll(f)
 		if err != nil {
 			return "", err
