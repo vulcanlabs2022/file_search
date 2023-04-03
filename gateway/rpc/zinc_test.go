@@ -40,7 +40,7 @@ func initTestService() Service {
 
 func TestQueryFile(t *testing.T) {
 	service := initTestService()
-	content, err := service.getContentByDocId(FileIndex, "8c1ae2c7-33df-455a-870a-a41ee25dbcc0")
+	content, err := service.GetContentByDocId(FileIndex, "8c1ae2c7-33df-455a-870a-a41ee25dbcc0")
 	if err != nil {
 		panic(err)
 	}
@@ -49,12 +49,12 @@ func TestQueryFile(t *testing.T) {
 
 func TestQueryPath(t *testing.T) {
 	service := initTestService()
-	res, err := service.zincQueryByPath(FileIndex, "/Users/houmingyu/Documents/web5/wzinc/rpc/zinc_test.go")
+	res, err := service.ZincQueryByPath(FileIndex, "/Users/houmingyu/Documents/web5/wzinc/rpc/zinc_test.go")
 	if err != nil {
 		panic(err)
 	}
 	fmt.Printf("%v", res)
-	doc, err := getFileQueryResult(res)
+	doc, err := GetFileQueryResult(res)
 	if err != nil {
 		panic(err)
 	}
@@ -227,7 +227,7 @@ func TestClientInput(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	docId := "id_example123"
-	res, err := RpcServer.zincDelete(docId, index)
+	res, err := RpcServer.ZincDelete(docId, index)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -79,7 +79,7 @@ func (s *Service) HandleInput(c *gin.Context) {
 		"format_name": formatFilename(filename),
 	}
 
-	id, err := s.zincInput(index, doc)
+	id, err := s.ZincInput(index, doc)
 	if err != nil {
 		rep.ResultCode = ErrorCodeInput
 		rep.ResultMsg = err.Error()
@@ -112,7 +112,7 @@ func (s *Service) HandleDelete(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rep)
 		return
 	}
-	_, err := s.zincDelete(docId, index)
+	_, err := s.ZincDelete(docId, index)
 	if err != nil {
 		rep.ResultCode = ErrorCodeDelete
 		rep.ResultMsg = err.Error()

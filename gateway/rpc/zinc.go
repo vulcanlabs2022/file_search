@@ -31,7 +31,7 @@ type Query struct {
 
 var ErrQuery = errors.New("query err")
 
-func (s *Service) zincDelete(docId string, index string) ([]byte, error) {
+func (s *Service) ZincDelete(docId string, index string) ([]byte, error) {
 	url := s.zincUrl + "/api/" + index + "/_doc/" + docId
 	req, err := http.NewRequest("DELETE", url, strings.NewReader(""))
 	if err != nil {
@@ -56,7 +56,7 @@ func (s *Service) zincDelete(docId string, index string) ([]byte, error) {
 	return body, nil
 }
 
-func (s *Service) zincInput(index string, document map[string]interface{}) ([]byte, error) {
+func (s *Service) ZincInput(index string, document map[string]interface{}) ([]byte, error) {
 	id := uuid.NewString()
 	ctx := context.WithValue(context.TODO(), zinc.ContextBasicAuth, zinc.BasicAuth{
 		UserName: s.username,
@@ -89,7 +89,7 @@ type QueryResult struct {
 	HightLights []string `json:"highlight"`
 }
 
-func (s *Service) zincQueryByPath(indexName, path string) (*zinc.MetaSearchResponse, error) {
+func (s *Service) ZincQueryByPath(indexName, path string) (*zinc.MetaSearchResponse, error) {
 	query := *zinc.NewMetaZincQuery()
 	termPathQuery := *zinc.NewMetaTermQuery()
 	termPathQuery.SetValue(path)
@@ -109,7 +109,7 @@ func (s *Service) zincQueryByPath(indexName, path string) (*zinc.MetaSearchRespo
 	return resp, nil
 }
 
-func (s *Service) zincRawQuery(indexName, term string) (*zinc.MetaSearchResponse, error) {
+func (s *Service) ZincRawQuery(indexName, term string) (*zinc.MetaSearchResponse, error) {
 	query := *zinc.NewMetaZincQuery()
 	highlight := zinc.NewMetaHighlight()
 	highlightContent := zinc.NewMetaHighlight()
@@ -143,7 +143,7 @@ func (s *Service) zincRawQuery(indexName, term string) (*zinc.MetaSearchResponse
 	return resp, nil
 }
 
-func getFileQueryResult(resp *zinc.MetaSearchResponse) ([]QueryResult, error) {
+func GetFileQueryResult(resp *zinc.MetaSearchResponse) ([]QueryResult, error) {
 	resultList := make([]QueryResult, 0)
 	for _, hit := range resp.Hits.Hits {
 		result := QueryResult{
@@ -183,11 +183,11 @@ func getFileQueryResult(resp *zinc.MetaSearchResponse) ([]QueryResult, error) {
 }
 
 func (s *Service) zincQuery(index, term string) ([]QueryResult, error) {
-	res, err := s.zincRawQuery(index, term)
+	res, err := s.ZincRawQuery(index, term)
 	if err != nil {
 		return nil, err
 	}
-	return getFileQueryResult(res)
+	return GetFileQueryResult(res)
 }
 
 func (s *Service) listIndex() ([]string, error) {
@@ -294,7 +294,7 @@ func (s *Service) setIndexMapping(indexName string) error {
 	return nil
 }
 
-func (s *Service) getContentByDocId(index, docId string) (string, error) {
+func (s *Service) GetContentByDocId(index, docId string) (string, error) {
 	url := s.zincUrl + "/api/" + index + "/_doc/" + docId
 	req, err := http.NewRequest("GET", url, strings.NewReader(""))
 	if err != nil {
@@ -317,12 +317,12 @@ func (s *Service) getContentByDocId(index, docId string) (string, error) {
 	return content, nil
 }
 
-func (s *Service) updateFileContentByPath(index, path, newContent string) (string, error) {
-	res, err := s.zincQueryByPath(index, path)
+func (s *Service) UpdateFileContentByPath(index, path, newContent string) (string, error) {
+	res, err := s.ZincQueryByPath(index, path)
 	if err != nil {
 		return "", err
 	}
-	docData, err := getFileQueryResult(res)
+	docData, err := GetFileQueryResult(res)
 	if err != nil {
 		return "", err
 	}

@@ -72,7 +72,7 @@ func Start(ctx *cli.Context) {
 	}
 	modelUri := os.Getenv("ModelUri")
 
-	inotify.WatchPath(watchDir)
+	go inotify.WatchPath(watchDir)
 
 	rpc.InitRpcService(url, port, username, password, map[string]string{"self-driving": modelUri})
 	contx := context.Background()
