@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/rs/zerolog/log"
 )
 
 func WatchPath(path string) {
