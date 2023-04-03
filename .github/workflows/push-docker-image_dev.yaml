@@ -1,8 +1,8 @@
-name: Push Docker Image Master
+name: Push Docker Image Dev
 on:
   push:
     branches:
-      - master # When pushing to main branch then run this action
+      - dev # When pushing to dev branch then run this action
 # Env variable
 env:
   DOCKER_USER: ${{secrets.DOCKER_USER}}
@@ -17,6 +17,6 @@ jobs:
       run: | # log into docker hub account
         docker login -u $DOCKER_USER -p $DOCKER_PASSWORD  
     - name: Build the Docker image # push The image to the docker hub
-      run: docker build . --file Dockerfile --tag $DOCKER_USER/$REPO_NAME:latest
+      run: docker build . --file Dockerfile --tag $DOCKER_USER/$REPO_NAME:dev
     - name: Docker Push
-      run: docker push $DOCKER_USER/$REPO_NAME:latest
+      run: docker push $DOCKER_USER/$REPO_NAME:dev

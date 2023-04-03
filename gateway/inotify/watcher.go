@@ -1,6 +1,7 @@
 package inotify
 
 import (
+	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -9,21 +10,23 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func WatchPath(path string) error {
+func WatchPath(path string) {
 	// Create a new watcher.
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
-		return err
+		panic(err)
 	}
 	defer w.Close()
 
 	// Start listening for events.
 	go dedupLoop(w)
 
-	w.Add(path)
+	err = w.Add(path)
+	if err != nil {
+		panic(err)
+	}
 
 	printTime("ready; press ^C to exit")
-	return nil
 }
 
 func dedupLoop(w *fsnotify.Watcher) {
@@ -88,5 +91,5 @@ func dedupLoop(w *fsnotify.Watcher) {
 }
 
 func printTime(s string, args ...interface{}) {
-	log.Info().Msgf(time.Now().Format("15:04:05.0000")+" "+s+"\n", args...)
+	fmt.Printf(time.Now().Format("15:04:05.0000")+" "+s+"\n", args...)
 }
