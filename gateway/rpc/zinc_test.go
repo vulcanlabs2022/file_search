@@ -49,7 +49,7 @@ func TestQueryFile(t *testing.T) {
 
 func TestQueryPath(t *testing.T) {
 	service := initTestService()
-	res, err := service.ZincQueryByPath(FileIndex, "/Users/houmingyu/Documents/web5/wzinc/rpc/zinc_test.go")
+	res, err := service.ZincQueryByPath(FileIndex, "/Users/houmingyu/Documents/web5/filesearch/data/aaa.txt")
 	if err != nil {
 		panic(err)
 	}
@@ -237,7 +237,7 @@ func TestQuery(t *testing.T) {
 	url := zincUrl + "/api/_analyze"
 	req, err := http.NewRequest("POST", url, strings.NewReader(`{
 		"analyzer" : "keyword",
-		"text" : "/Users/houmingyu/Documents/web5/wzinc/rpc/zinc_test.go"
+		"text" : "/Users/houmingyu/Documents/web5/filesearch/data/ next/ff.txt"
 	  }`))
 	if err != nil {
 		panic(err)
@@ -262,5 +262,5 @@ func TestQuery(t *testing.T) {
 }
 
 func TestFormatFilename(t *testing.T) {
-	fmt.Println(formatFilename("NihaoTest_something.txt"))
+	fmt.Println(FormatFilename("NihaoTest_something.txt"))
 }

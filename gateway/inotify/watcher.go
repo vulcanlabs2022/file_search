@@ -2,32 +2,57 @@ package inotify
 
 import (
 	"fmt"
+	"io/fs"
 	"math"
+	"os"
+	"path"
+	"path/filepath"
 	"sync"
 	"time"
+	"wzinc/parser"
 	"wzinc/rpc"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/rs/zerolog/log"
 )
+
+var watcher *fsnotify.Watcher
 
 func WatchPath(path string) {
 	// Create a new watcher.
-	w, err := fsnotify.NewWatcher()
+	var err error
+	watcher, err = fsnotify.NewWatcher()
 	if err != nil {
 		panic(err)
 	}
-	defer w.Close()
 
 	// Start listening for events.
-	go dedupLoop(w)
-	fmt.Println(path)
-	err = w.Add(path)
+	go dedupLoop(watcher)
+	log.Info().Msgf("watching path %s", path)
+
+	err = filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			err = watcher.Add(path)
+			if err != nil {
+				fmt.Println("watcher add error:", err)
+				return err
+			}
+		} else {
+			err = updateOrInputDoc(path)
+			if err != nil {
+				log.Error().Msgf("udpate or input doc err %v", err)
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		panic(err)
 	}
 
 	printTime("ready; press ^C to exit")
-	<-make(chan struct{})
 }
 
 func dedupLoop(w *fsnotify.Watcher) {
@@ -77,7 +102,13 @@ func dedupLoop(w *fsnotify.Watcher) {
 
 			// No timer yet, so create one.
 			if !ok {
-				t = time.AfterFunc(math.MaxInt64, func() { printEvent(e) })
+				t = time.AfterFunc(math.MaxInt64, func() {
+					printEvent(e)
+					err := handleEvent(e)
+					if err != nil {
+						log.Error().Msgf("handle watch file event error %s", err.Error())
+					}
+				})
 				t.Stop()
 
 				mu.Lock()
@@ -92,7 +123,7 @@ func dedupLoop(w *fsnotify.Watcher) {
 }
 
 func handleEvent(e fsnotify.Event) error {
-	if e.Has(fsnotify.Remove) {
+	if e.Has(fsnotify.Remove) || e.Has(fsnotify.Rename) {
 		res, err := rpc.RpcServer.ZincQueryByPath(rpc.FileIndex, e.Name)
 		if err != nil {
 			return err
@@ -102,16 +133,116 @@ func handleEvent(e fsnotify.Event) error {
 			return err
 		}
 		for _, doc := range docs {
-			rpc.RpcServer.ZincDelete(doc.DocId, rpc.FileIndex)
+			_, err = rpc.RpcServer.ZincDelete(doc.DocId, rpc.FileIndex)
+			if err != nil {
+				log.Error().Msgf("zinc delete error %s", err.Error())
+			}
+			log.Info().Msgf("delete doc id %s path %s", doc.DocId, e.Name)
 		}
 		return nil
 	}
-	if e.Has(fsnotify.Create) || e.Has(fsnotify.Write) {
 
+	if e.Has(fsnotify.Create) {
+		err := filepath.Walk(e.Name, func(path string, info fs.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				//add dir to watch list
+				err = watcher.Add(path)
+				if err != nil {
+					log.Error().Msgf("watcher add error:%v", err)
+				}
+			} else {
+				//input zinc file
+				err = updateOrInputDoc(path)
+				if err != nil {
+					log.Error().Msgf("update or input doc error", err)
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			log.Error().Msgf("handle create file error %v", err)
+		}
+		return nil
+	}
+
+	if e.Has(fsnotify.Write) || e.Has(fsnotify.Chmod) {
+		return updateOrInputDoc(e.Name)
 	}
 	return nil
 }
 
+func updateOrInputDoc(filepath string) error {
+	log.Info().Msg("try update or input" + filepath)
+	res, err := rpc.RpcServer.ZincQueryByPath(rpc.FileIndex, filepath)
+	if err != nil {
+		return err
+	}
+	docs, err := rpc.GetFileQueryResult(res)
+	if err != nil {
+		return err
+	}
+	// update doc if path exist
+	// if len(docs) > 0 {
+	// 	fileType := parser.GetTypeFromName(filepath)
+	// 	if _, ok := parser.ParseAble[fileType]; ok {
+	// 		f, err := os.Open(filepath)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		defer f.Close()
+	// 		content, err := parser.ParseDoc(f, filepath)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		log.Info().Msgf("try update content from old doc id %s path %s", docs[0].DocId, filepath)
+	// 		_, err = rpc.RpcServer.UpdateFileContentFromOldDoc(rpc.FileIndex, content, docs[0])
+	// 		return err
+	// 	}
+	// 	return nil
+	// }
+
+	//delete all
+	for _, doc := range docs {
+		log.Info().Msgf("try delete docid %s path %s", doc.DocId, doc.Where)
+		_, err := rpc.RpcServer.ZincDelete(doc.DocId, rpc.FileIndex)
+		if err != nil {
+			log.Error().Msgf("zinc delete error %v", err)
+		}
+	}
+
+	//input new doc if path not exist
+	fileType := parser.GetTypeFromName(filepath)
+	content := ""
+	if _, ok := parser.ParseAble[fileType]; ok {
+		f, err := os.Open(filepath)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		content, err = parser.ParseDoc(f, filepath)
+		if err != nil {
+			return err
+		}
+	}
+
+	filename := path.Base(filepath)
+	doc := map[string]interface{}{
+		"name":        filename,
+		"where":       filepath,
+		"content":     content,
+		"size":        len([]byte(content)),
+		"created":     time.Now().Unix(),
+		"updated":     time.Now().Unix(),
+		"format_name": rpc.FormatFilename(filename),
+	}
+	id, err := rpc.RpcServer.ZincInput(rpc.FileIndex, doc)
+	log.Info().Msgf("zinc input doc id %s path %s", id, filepath)
+	return err
+}
+
 func printTime(s string, args ...interface{}) {
-	fmt.Printf(time.Now().Format("15:04:05.0000")+" "+s+"\n", args...)
+	log.Info().Msgf(time.Now().Format("15:04:05.0000")+" "+s+"\n", args...)
 }

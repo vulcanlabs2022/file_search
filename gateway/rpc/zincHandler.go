@@ -13,10 +13,10 @@ import (
 )
 
 type QueryResp struct {
-	Count  int           `json:"count"`
-	Offset int           `json:"offset"`
-	Limit  int           `json:"limit"`
-	Items  []QueryResult `json:"items"`
+	Count  int         `json:"count"`
+	Offset int         `json:"offset"`
+	Limit  int         `json:"limit"`
+	Items  []QueryItem `json:"items"`
 }
 
 func (s *Service) HandleInput(c *gin.Context) {
@@ -76,7 +76,7 @@ func (s *Service) HandleInput(c *gin.Context) {
 		"size":        size,
 		"created":     time.Now().Unix(),
 		"updated":     time.Now().Unix(),
-		"format_name": formatFilename(filename),
+		"format_name": FormatFilename(filename),
 	}
 
 	id, err := s.ZincInput(index, doc)
@@ -161,12 +161,76 @@ func (s *Service) HandleQuery(c *gin.Context) {
 	}
 
 	rep.ResultCode = Success
+	items := slashQueryResult(results)
 	response := QueryResp{
-		Count:  len(results),
+		Count:  len(items),
 		Offset: 0,
 		Limit:  maxResults,
-		Items:  results,
+		Items:  items,
 	}
 	repMsg, _ := json.Marshal(&response)
 	rep.ResultMsg = string(repMsg)
+}
+
+type QueryItem struct {
+	Index    string `json:"index"`
+	Where    string `json:"where"`
+	Name     string `json:"name"`
+	DocId    string `json:"docId"`
+	Created  int64  `json:"created"`
+	Updated  int64  `json:"updated"`
+	Type     string `json:"type"`
+	Size     int64  `json:"size"`
+	Modified int64  `json:"modified"`
+	Snippet  string `json:"snippet"`
+}
+
+func slashQueryResult(results []QueryResult) []QueryItem {
+	type record struct {
+		QueryItem
+		id int
+	}
+	itemsMap := make(map[string]record)
+	itemsList := make([]QueryItem, 0)
+	id := 0
+	for _, res := range results {
+		if item, ok := itemsMap[res.Where]; ok {
+			if res.Modified > item.Modified {
+				shortRes := shortQueryResult(res)
+				itemsMap[res.Where] = record{
+					QueryItem: shortRes,
+					id:        item.id,
+				}
+				itemsList[item.id] = shortRes
+			}
+			continue
+		}
+		shortRes := shortQueryResult(res)
+		itemsList = append(itemsList, shortRes)
+		itemsMap[res.Where] = record{
+			QueryItem: shortQueryResult(res),
+			id:        id,
+		}
+		id++
+	}
+	return itemsList
+}
+
+func shortQueryResult(res QueryResult) QueryItem {
+	snippet := ""
+	if len(res.HightLights) > 0 {
+		snippet = res.HightLights[0]
+	}
+	return QueryItem{
+		Index:    res.Index,
+		Where:    res.Where,
+		Name:     res.Name,
+		DocId:    res.DocId,
+		Created:  res.Created,
+		Updated:  res.Updated,
+		Type:     res.Type,
+		Size:     res.Size,
+		Modified: res.Modified,
+		Snippet:  snippet,
+	}
 }

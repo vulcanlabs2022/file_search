@@ -35,7 +35,7 @@ func HttpPost(requrl, body string, timeoutS int, headerMap map[string]string) (p
 	return
 }
 
-func formatFilename(filename string) string {
+func FormatFilename(filename string) string {
 	formated := addSpaceBetweenCase(filename)
 	formated = strings.ReplaceAll(formated, "_", " ")
 	formated = strings.ReplaceAll(formated, "-", " ")
