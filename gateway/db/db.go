@@ -16,7 +16,7 @@ var collection *mongo.Collection
 
 const LimitConversactionMsg = 20
 
-var MongoURI = "mongodb://houmingyu:Houmy2023@10.14.6.24:27017"
+var MongoURI = ""
 
 type Message struct {
 	ConversationId string `json:"conversationId" bson:"conversationId"`

@@ -1,93 +1,92 @@
 package inotify
 
-// import (
-// 	"fmt"
+import (
+	"math"
+	"sync"
+	"time"
 
-// 	fsevents "github.com/tywkeene/go-fsevents"
-// )
+	"github.com/fsnotify/fsnotify"
+	"github.com/rs/zerolog/log"
+)
 
-// var FsWatcher Watcher
+func WatchPath(path string) error {
+	// Create a new watcher.
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	defer w.Close()
 
-// type Watcher struct {
-// 	dir string
-// }
+	// Start listening for events.
+	go dedupLoop(w)
 
-// func Start(dir string) {
-// 	FsWatcher = Watcher{dir: dir}
-// 	FsWatcher.Start()
-// }
+	w.Add(path)
 
-// func handleEvents(w *fsevents.Watcher) error {
-// 	// Watch for events
-// 	go w.Watch()
-// 	fmt.Println("Waiting for events...")
+	printTime("ready; press ^C to exit")
+	return nil
+}
 
-// 	for {
-// 		select {
-// 		case event := <-w.Events:
-// 			// Contextual metadata is stored in the event object as well as a pointer to the WatchDescriptor that event belongs to
-// 			fmt.Printf("Event Name: %s Event Path: %s Event Descriptor: %v", event.Name, event.Path, event.Descriptor)
-// 			// A Watcher keeps a running atomic counter of all events it sees
-// 			fmt.Println("Watcher Event Count:", w.GetEventCount())
-// 			fmt.Println("Running descriptors:", w.GetRunningDescriptors())
+func dedupLoop(w *fsnotify.Watcher) {
+	var (
+		// Wait 100ms for new events; each new event resets the timer.
+		waitFor = 100 * time.Millisecond
 
-// 			if event.IsDirCreated() == true {
-// 				fmt.Println("Directory created:", event.Path)
-// 				// A Watcher can be used dynamically in response to events to add/modify/delete WatchDescriptors
-// 				d, err := w.AddDescriptor(event.Path, fsevents.DirCreatedEvent)
-// 				if err != nil {
-// 					fmt.Printf("Error adding descriptor for path %q: %s\n", event.Path, err)
-// 					break
-// 				}
-// 				// WatchDescriptors can be started and stopped at any time and in response to events
-// 				if err := d.Start(); err != nil {
-// 					fmt.Printf("Error starting descriptor for path %q: %s\n", event.Path, err)
-// 					break
-// 				}
-// 				fmt.Printf("Watch started for newly created directory %q\n", event.Path)
-// 			}
+		// Keep track of the timers, as path → timer.
+		mu     sync.Mutex
+		timers = make(map[string]*time.Timer)
 
-// 			if event.IsDirRemoved() == true {
-// 				fmt.Println("Directory removed:", event.Path)
-// 				if err := w.RemoveDescriptor(event.Path); err != nil {
-// 					fmt.Printf("Error removing descriptor for path %q: %s\n", event.Path, err)
-// 					break
-// 				}
-// 			}
+		// Callback we run.
+		printEvent = func(e fsnotify.Event) {
+			printTime(e.String())
 
-// 			if event.IsFileCreated() == true {
-// 				fmt.Println("File created: ", event.Name)
-// 			}
-// 			if event.IsFileRemoved() == true {
-// 				fmt.Println("File removed: ", event.Name)
-// 			}
-// 			break
-// 		case err := <-w.Errors:
-// 			fmt.Println(err)
-// 			break
-// 		}
-// 	}
-// }
+			// Don't need to remove the timer if you don't have a lot of files.
+			mu.Lock()
+			delete(timers, e.Name)
+			mu.Unlock()
+		}
+	)
 
-// func (w *Watcher) Start() {
-// 	var mask uint32 = fsevents.DirCreatedEvent | fsevents.DirRemovedEvent |
-// 		fsevents.FileCreatedEvent | fsevents.FileRemovedEvent | fsevents.FileChangedEvent
+	for {
+		select {
+		// Read from Errors.
+		case err, ok := <-w.Errors:
+			if !ok { // Channel was closed (i.e. Watcher.Close() was called).
+				return
+			}
+			printTime("ERROR: %s", err)
+		// Read from Events.
+		case e, ok := <-w.Events:
+			if !ok { // Channel was closed (i.e. Watcher.Close() was called).
+				return
+			}
 
-// 	wa, err := fsevents.NewWatcher()
-// 	if err != nil {
-// 		panic(err)
-// 	}
+			// We just want to watch for file creation, so ignore everything
+			// outside of Create and Write.
+			if !e.Has(fsnotify.Create) && !e.Has(fsnotify.Write) {
+				continue
+			}
 
-// 	d, err := wa.AddDescriptor(w.dir, mask)
-// 	if err != nil {
-// 		panic(err)
-// 	}
+			// Get timer.
+			mu.Lock()
+			t, ok := timers[e.Name]
+			mu.Unlock()
 
-// 	if err := d.Start(); err != nil {
-// 		panic(err)
-// 	}
+			// No timer yet, so create one.
+			if !ok {
+				t = time.AfterFunc(math.MaxInt64, func() { printEvent(e) })
+				t.Stop()
 
-// 	if err := handleEvents(wa); err != nil {
-// 		fmt.Printf("Error handling events: %s", err.Error())
-// 	}
-// }
+				mu.Lock()
+				timers[e.Name] = t
+				mu.Unlock()
+			}
+
+			// Reset the timer for this path, so it will start from 100ms again.
+			t.Reset(waitFor)
+		}
+	}
+}
+
+func printTime(s string, args ...interface{}) {
+	log.Info().Msgf(time.Now().Format("15:04:05.0000")+" "+s+"\n", args...)
+}

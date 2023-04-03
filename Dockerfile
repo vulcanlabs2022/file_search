@@ -43,6 +43,7 @@ COPY --from=builder /go/src/gateway/wzinc /go/bin/wzinc
 
 RUN apt-get update
 RUN apt-get install -y poppler-utils wv unrtf tidy
+RUN apt-get install -y inotify-tools
 
 # Use an unprivileged user.
 USER gateway:gateway

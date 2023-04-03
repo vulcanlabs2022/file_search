@@ -125,6 +125,7 @@ func (c *Service) Start(ctx context.Context) error {
 	r.POST("/api/file/delete", c.HandleDelete)
 	r.POST("/api/file/query", c.HandleQuery)
 	r.POST("/api/ai/question", c.HandleQuestion)
+	r.POST("/api/inotify/request", HandleInotifyEvent)
 	r.GET("/api/refresh", HandleRefresh)
 	address := "0.0.0.0:" + c.port
 

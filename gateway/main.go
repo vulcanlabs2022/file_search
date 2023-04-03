@@ -8,6 +8,7 @@ import (
 
 	"syscall"
 
+	"wzinc/inotify"
 	"wzinc/rpc"
 
 	"github.com/rs/zerolog"
@@ -71,7 +72,9 @@ func Start(ctx *cli.Context) {
 	}
 	modelUri := os.Getenv("ModelUri")
 
-	rpc.InitRpcService(url, port, username, password, map[string]string{"model": modelUri})
+	inotify.WatchPath(watchDir)
+
+	rpc.InitRpcService(url, port, username, password, map[string]string{"self-driving": modelUri})
 	contx := context.Background()
 	err := rpc.RpcServer.Start(contx)
 	if err != nil {

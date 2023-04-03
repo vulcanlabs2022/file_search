@@ -3,6 +3,7 @@ module wzinc
 go 1.18
 
 require (
+	github.com/fsnotify/fsnotify v1.6.0
 	github.com/gin-gonic/gin v1.9.0
 	github.com/google/uuid v1.3.0
 	github.com/zinclabs/sdk-go-zincsearch v0.3.3
