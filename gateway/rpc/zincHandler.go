@@ -13,11 +13,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type QueryResp struct {
-	Count  int         `json:"count"`
-	Offset int         `json:"offset"`
-	Limit  int         `json:"limit"`
-	Items  []QueryItem `json:"items"`
+type FileQueryResp struct {
+	Count  int             `json:"count"`
+	Offset int             `json:"offset"`
+	Limit  int             `json:"limit"`
+	Items  []FileQueryItem `json:"items"`
 }
 
 func (s *Service) HandleInput(c *gin.Context) {
@@ -162,8 +162,8 @@ func (s *Service) HandleQuery(c *gin.Context) {
 	}
 
 	rep.ResultCode = Success
-	items := slashQueryResult(results)
-	response := QueryResp{
+	items := slashFileQueryResult(results)
+	response := FileQueryResp{
 		Count:  len(items),
 		Offset: 0,
 		Limit:  maxResults,
@@ -173,7 +173,7 @@ func (s *Service) HandleQuery(c *gin.Context) {
 	rep.ResultMsg = string(repMsg)
 }
 
-type QueryItem struct {
+type FileQueryItem struct {
 	Index    string `json:"index"`
 	Where    string `json:"where"`
 	Name     string `json:"name"`
@@ -185,13 +185,13 @@ type QueryItem struct {
 	Snippet  string `json:"snippet"`
 }
 
-func slashQueryResult(results []QueryResult) []QueryItem {
+func slashFileQueryResult(results []FileQueryResult) []FileQueryItem {
 	type record struct {
-		QueryItem
+		FileQueryItem
 		id int
 	}
 	itemsMap := make(map[string]record)
-	itemsList := make([]QueryItem, 0)
+	itemsList := make([]FileQueryItem, 0)
 	id := 0
 	for _, res := range results {
 		fileInfo, err := os.Stat(res.Where)
@@ -203,32 +203,32 @@ func slashQueryResult(results []QueryResult) []QueryItem {
 		}
 		if item, ok := itemsMap[res.Where]; ok {
 			if res.Modified > item.Modified {
-				shortRes := shortQueryResult(res)
+				shortRes := shortFileQueryResult(res)
 				itemsMap[res.Where] = record{
-					QueryItem: shortRes,
-					id:        item.id,
+					FileQueryItem: shortRes,
+					id:            item.id,
 				}
 				itemsList[item.id] = shortRes
 			}
 			continue
 		}
-		shortRes := shortQueryResult(res)
+		shortRes := shortFileQueryResult(res)
 		itemsList = append(itemsList, shortRes)
 		itemsMap[res.Where] = record{
-			QueryItem: shortQueryResult(res),
-			id:        id,
+			FileQueryItem: shortFileQueryResult(res),
+			id:            id,
 		}
 		id++
 	}
 	return itemsList
 }
 
-func shortQueryResult(res QueryResult) QueryItem {
+func shortFileQueryResult(res FileQueryResult) FileQueryItem {
 	snippet := ""
 	if len(res.HightLights) > 0 {
 		snippet = res.HightLights[0]
 	}
-	return QueryItem{
+	return FileQueryItem{
 		Index:    res.Index,
 		Where:    res.Where,
 		Name:     res.Name,

@@ -40,6 +40,7 @@ func FormatFilename(filename string) string {
 	formated = strings.ReplaceAll(formated, "_", " ")
 	formated = strings.ReplaceAll(formated, "-", " ")
 	formated = strings.ReplaceAll(formated, ".", " ")
+	formated = strings.ReplaceAll(formated, "/", " ")
 	return formated
 }
 

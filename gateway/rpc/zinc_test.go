@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	zinc "github.com/zinclabs/sdk-go-zincsearch"
@@ -263,4 +265,29 @@ func TestQuery(t *testing.T) {
 
 func TestFormatFilename(t *testing.T) {
 	fmt.Println(FormatFilename("NihaoTest_something.txt"))
+}
+
+func TestJsonRss(t *testing.T) {
+	rssInput := RssInputRequest{
+		RssMeta: RssMeta{
+			Name:    "nihao",
+			EntryId: 123,
+			Created: time.Now().Unix(),
+			FeedInfos: []FeedInfo{{
+				FeedId:   1,
+				FeedName: "bbc news",
+				FeedIcon: "http://bbc.com",
+			}},
+			Borders: []Border{{
+				Name: "nihao",
+				Id:   0,
+			}},
+		},
+		Content: "this is a rainy day today, everything is going well",
+	}
+	b, err := json.Marshal(&rssInput)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(b))
 }

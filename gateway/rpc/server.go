@@ -124,9 +124,15 @@ func (c *Service) Start(ctx context.Context) error {
 	r.POST("/api/file/input", c.HandleInput)
 	r.POST("/api/file/delete", c.HandleDelete)
 	r.POST("/api/file/query", c.HandleQuery)
-	r.POST("/api/ai/question", c.HandleQuestion)
+
 	r.POST("/api/inotify/request", HandleInotifyEvent)
-	r.GET("/api/refresh", HandleRefresh)
+
+	r.POST("/api/rss/input", c.HandleRssInput)
+	r.POST("/api/rss/delete", c.HandleRssDelete)
+	r.POST("/api/rss/query", c.HandleRssQuery)
+
+	r.POST("/api/ai/question", c.HandleQuestion)
+	r.GET("/api/ai/refresh", HandleRefresh)
 	address := "0.0.0.0:" + c.port
 
 	go r.Run(address)

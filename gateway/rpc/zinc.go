@@ -76,7 +76,7 @@ type Document struct {
 	Content  string `json:"content"`
 }
 
-type QueryResult struct {
+type FileQueryResult struct {
 	Index       string   `json:"index"`
 	Where       string   `json:"where"`
 	Name        string   `json:"name"`
@@ -87,6 +87,24 @@ type QueryResult struct {
 	Type        string   `json:"type"`
 	Size        int64    `json:"size"`
 	Modified    int64    `json:"modified"`
+	HightLights []string `json:"highlight"`
+}
+
+// doc := map[string]interface{}{
+// 	"name":        rssInput.Name,
+// 	"content":     rssInput.Content,
+// 	"created":     time.Now().Unix(),
+// 	"format_name": FormatFilename(rssInput.Name),
+// 	"meta":        metaInfo,
+// }
+
+type RssQueryResult struct {
+	Index       string   `json:"index"`
+	Name        string   `json:"name"`
+	DocId       string   `json:"docId"`
+	Created     int64    `json:"created"`
+	Content     string   `json:"content"`
+	Meta        string   `json:"meta"`
 	HightLights []string `json:"highlight"`
 }
 
@@ -145,10 +163,10 @@ func (s *Service) ZincRawQuery(indexName, term string, size int32) (*zinc.MetaSe
 	return resp, nil
 }
 
-func GetFileQueryResult(resp *zinc.MetaSearchResponse) ([]QueryResult, error) {
-	resultList := make([]QueryResult, 0)
+func GetFileQueryResult(resp *zinc.MetaSearchResponse) ([]FileQueryResult, error) {
+	resultList := make([]FileQueryResult, 0)
 	for _, hit := range resp.Hits.Hits {
-		result := QueryResult{
+		result := FileQueryResult{
 			Index:       FileIndex,
 			HightLights: make([]string, 0),
 		}
@@ -184,7 +202,38 @@ func GetFileQueryResult(resp *zinc.MetaSearchResponse) ([]QueryResult, error) {
 	return resultList, nil
 }
 
-func (s *Service) zincQuery(index, term string, size int32) ([]QueryResult, error) {
+func GetRssQueryResult(resp *zinc.MetaSearchResponse) ([]RssQueryResult, error) {
+	resultList := make([]RssQueryResult, 0)
+	for _, hit := range resp.Hits.Hits {
+		result := RssQueryResult{
+			Index:       FileIndex,
+			DocId:       *hit.Id,
+			HightLights: make([]string, 0),
+		}
+		if name, ok := hit.Source["name"].(string); ok {
+			result.Name = name
+		}
+		if created, ok := hit.Source["created"].(float64); ok {
+			result.Created = int64(created)
+		}
+		if content, ok := hit.Source["content"].(string); ok {
+			result.Content = content
+		}
+		if meta, ok := hit.Source["meta"].(string); ok {
+			result.Meta = meta
+		}
+
+		for _, highlightRes := range hit.Highlight {
+			for _, h := range highlightRes.([]interface{}) {
+				result.HightLights = append(result.HightLights, h.(string))
+			}
+		}
+		resultList = append(resultList, result)
+	}
+	return resultList, nil
+}
+
+func (s *Service) zincQuery(index, term string, size int32) ([]FileQueryResult, error) {
 	res, err := s.ZincRawQuery(index, term, size)
 	if err != nil {
 		return nil, err
@@ -319,7 +368,7 @@ func (s *Service) GetContentByDocId(index, docId string) (string, error) {
 	return content, nil
 }
 
-func (s *Service) UpdateFileContentFromOldDoc(index, newContent string, oldDoc QueryResult) (string, error) {
+func (s *Service) UpdateFileContentFromOldDoc(index, newContent string, oldDoc FileQueryResult) (string, error) {
 	size := 0
 	fileInfo, err := os.Stat(oldDoc.Where)
 	if err == nil {
