@@ -142,7 +142,7 @@ func handleEvent(e fsnotify.Event) error {
 				if err != nil {
 					log.Error().Msgf("zinc delete error %s", err.Error())
 				}
-				log.Info().Msgf("delete doc id %s path %s", doc.DocId, filePath)
+				log.Debug().Msgf("delete doc id %s path %s", doc.DocId, filePath)
 			}
 		}
 		res, err := rpc.RpcServer.ZincQueryByPath(rpc.FileIndex, e.Name)
@@ -158,7 +158,7 @@ func handleEvent(e fsnotify.Event) error {
 			if err != nil {
 				log.Error().Msgf("zinc delete error %s", err.Error())
 			}
-			log.Info().Msgf("delete doc id %s path %s", doc.DocId, e.Name)
+			log.Debug().Msgf("delete doc id %s path %s", doc.DocId, e.Name)
 		}
 		return nil
 	}
@@ -197,7 +197,7 @@ func handleEvent(e fsnotify.Event) error {
 }
 
 func updateOrInputDoc(filepath string) error {
-	log.Info().Msg("try update or input" + filepath)
+	log.Debug().Msg("try update or input" + filepath)
 	res, err := rpc.RpcServer.ZincQueryByPath(rpc.FileIndex, filepath)
 	if err != nil {
 		return err
@@ -219,7 +219,7 @@ func updateOrInputDoc(filepath string) error {
 	// 		if err != nil {
 	// 			return err
 	// 		}
-	// 		log.Info().Msgf("try update content from old doc id %s path %s", docs[0].DocId, filepath)
+	// 		log.Debug().Msgf("try update content from old doc id %s path %s", docs[0].DocId, filepath)
 	// 		_, err = rpc.RpcServer.UpdateFileContentFromOldDoc(rpc.FileIndex, content, docs[0])
 	// 		return err
 	// 	}
@@ -228,7 +228,7 @@ func updateOrInputDoc(filepath string) error {
 
 	//delete all
 	for _, doc := range docs {
-		log.Info().Msgf("try delete docid %s path %s", doc.DocId, doc.Where)
+		log.Debug().Msgf("try delete docid %s path %s", doc.DocId, doc.Where)
 		_, err := rpc.RpcServer.ZincDelete(doc.DocId, rpc.FileIndex)
 		if err != nil {
 			log.Error().Msgf("zinc delete error %v", err)
@@ -266,7 +266,7 @@ func updateOrInputDoc(filepath string) error {
 		"format_name": rpc.FormatFilename(filename),
 	}
 	id, err := rpc.RpcServer.ZincInput(rpc.FileIndex, doc)
-	log.Info().Msgf("zinc input doc id %s path %s", id, filepath)
+	log.Debug().Msgf("zinc input doc id %s path %s", id, filepath)
 	return err
 }
 

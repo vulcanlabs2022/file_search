@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 	"wzinc/parser"
@@ -193,6 +194,13 @@ func slashQueryResult(results []QueryResult) []QueryItem {
 	itemsList := make([]QueryItem, 0)
 	id := 0
 	for _, res := range results {
+		fileInfo, err := os.Stat(res.Where)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err == nil {
+			res.Size = fileInfo.Size()
+		}
 		if item, ok := itemsMap[res.Where]; ok {
 			if res.Modified > item.Modified {
 				shortRes := shortQueryResult(res)
@@ -220,7 +228,6 @@ func shortQueryResult(res QueryResult) QueryItem {
 	if len(res.HightLights) > 0 {
 		snippet = res.HightLights[0]
 	}
-	fmt.Println(snippet)
 	return QueryItem{
 		Index:    res.Index,
 		Where:    res.Where,

@@ -34,11 +34,11 @@ services:
     ports:
       - "6317:6317"
     environment:
-      - WATCH_DIR=/data/filesdir  #需要监控和检索的数据文件路径
+      - WATCH_DIR=/data/filesdir #需要监控和检索的数据文件路径
       - MONGO_URI=mongodb://admin:123456@db:27017
       - ZINC_FIRST_ADMIN_USER=admin
       - ZINC_FIRST_ADMIN_PASSWORD=User#123
-      - ZINC_URI=http://zincsearch:4080 
+      - ZINC_URI=http://zincsearch:4080
       - MODEL_URI=http://localhost/ai #AI模型接口
     volumes:
       #需要挂载待监控的数据文件目录到容器的相同目录，以保证搜索返回的路径正确
