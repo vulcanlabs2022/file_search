@@ -2,6 +2,7 @@ package inotify
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/fsnotify/fsnotify"
@@ -44,4 +45,22 @@ func TestWatch(t *testing.T) {
 
 	// Block main goroutine forever.
 	<-make(chan struct{})
+}
+
+func TestSplit(t *testing.T) {
+	fmt.Println(len(strings.Split("/", "/")))
+	for _, in := range strings.Split("/proc/sys/fs/inotify/max_user_watches", "/") {
+		fmt.Printf("|%s|\n", in)
+	}
+}
+
+func TestPathTrie(t *testing.T) {
+	root := new(node)
+	root.addFile("/data/aa/t1.txt")
+	root.addFile("/data/aa/t2.txt")
+	root.addFile("/data/aa/bb/t3.txt")
+	root.addFile("/data/t4.txt")
+	fmt.Println(root.getLeafs())
+	fmt.Println(root.deletePath("/data/aa/bb/t3.txt"))
+	fmt.Println(root.getLeafs())
 }

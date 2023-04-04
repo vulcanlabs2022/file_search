@@ -178,7 +178,6 @@ type QueryItem struct {
 	Name     string `json:"name"`
 	DocId    string `json:"docId"`
 	Created  int64  `json:"created"`
-	Updated  int64  `json:"updated"`
 	Type     string `json:"type"`
 	Size     int64  `json:"size"`
 	Modified int64  `json:"modified"`
@@ -227,7 +226,6 @@ func shortQueryResult(res QueryResult) QueryItem {
 		Name:     res.Name,
 		DocId:    res.DocId,
 		Created:  res.Created,
-		Updated:  res.Updated,
 		Type:     res.Type,
 		Size:     res.Size,
 		Modified: res.Modified,

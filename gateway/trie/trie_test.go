@@ -10,7 +10,7 @@ import (
 func TestNode(t *testing.T) {
 	root := new(node)
 	wordList := []string{
-		"你好", "再见", "123","你",
+		"你好", "再见", "123", "你",
 	}
 	for _, word := range wordList {
 		root.add(word)
