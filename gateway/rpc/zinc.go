@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 	"wzinc/parser"
@@ -109,8 +110,9 @@ func (s *Service) ZincQueryByPath(indexName, path string) (*zinc.MetaSearchRespo
 	return resp, nil
 }
 
-func (s *Service) ZincRawQuery(indexName, term string) (*zinc.MetaSearchResponse, error) {
+func (s *Service) ZincRawQuery(indexName, term string, size int32) (*zinc.MetaSearchResponse, error) {
 	query := *zinc.NewMetaZincQuery()
+	query.SetSize(size)
 	highlight := zinc.NewMetaHighlight()
 	highlightContent := zinc.NewMetaHighlight()
 	highlight.SetFields(map[string]zinc.MetaHighlight{"content": *highlightContent})
@@ -182,8 +184,8 @@ func GetFileQueryResult(resp *zinc.MetaSearchResponse) ([]QueryResult, error) {
 	return resultList, nil
 }
 
-func (s *Service) zincQuery(index, term string) ([]QueryResult, error) {
-	res, err := s.ZincRawQuery(index, term)
+func (s *Service) zincQuery(index, term string, size int32) ([]QueryResult, error) {
+	res, err := s.ZincRawQuery(index, term, size)
 	if err != nil {
 		return nil, err
 	}
@@ -318,11 +320,16 @@ func (s *Service) GetContentByDocId(index, docId string) (string, error) {
 }
 
 func (s *Service) UpdateFileContentFromOldDoc(index, newContent string, oldDoc QueryResult) (string, error) {
+	size := 0
+	fileInfo, err := os.Stat(oldDoc.Where)
+	if err == nil {
+		size = int(fileInfo.Size())
+	}
 	newDoc := map[string]interface{}{
 		"name":        oldDoc.Name,
 		"where":       oldDoc.Where,
 		"content":     newContent,
-		"size":        len([]byte(newContent)),
+		"size":        size,
 		"created":     oldDoc.Created,
 		"updated":     time.Now().Unix(),
 		"format_name": oldDoc.Name,
@@ -352,11 +359,16 @@ func (s *Service) UpdateFileContentByPath(index, path, newContent string) (strin
 		return "", errors.New("no doc")
 	}
 	oldDoc := docData[0]
+	size := 0
+	fileInfo, err := os.Stat(path)
+	if err == nil {
+		size = int(fileInfo.Size())
+	}
 	newDoc := map[string]interface{}{
 		"name":        oldDoc.Name,
 		"where":       oldDoc.Where,
 		"content":     newContent,
-		"size":        len([]byte(newContent)),
+		"size":        size,
 		"created":     oldDoc.Created,
 		"updated":     time.Now().Unix(),
 		"format_name": oldDoc.Name,

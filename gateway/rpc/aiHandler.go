@@ -9,7 +9,6 @@ import (
 	"time"
 	"wzinc/common"
 	"wzinc/db"
-	"wzinc/trie"
 )
 
 const SensitiveResponse = "Sorry, as an artificial intelligence, I am unable to provide you with a standardized and satisfactory answer to your question. We will continuously optimize the system to provide better service. Thank you for your question."
@@ -118,20 +117,20 @@ func (s *Service) HandleQuestion(c *gin.Context) {
 	}
 
 	//check sensitive
-	if trie.IsSensitive(msg) {
-		log.Warn().Msgf("sensitive message: %s", msg)
-		var data []byte
-		data, _ = json.Marshal(&ProxyResponse{
-			Text:           SensitiveResponse,
-			MessageId:      "",
-			ConversationId: "",
-			Model:          modelName,
-		})
+	// if trie.IsSensitive(msg) {
+	// 	log.Warn().Msgf("sensitive message: %s", msg)
+	// 	var data []byte
+	// 	data, _ = json.Marshal(&ProxyResponse{
+	// 		Text:           SensitiveResponse,
+	// 		MessageId:      "",
+	// 		ConversationId: "",
+	// 		Model:          modelName,
+	// 	})
 
-		rep.ResultMsg = string(data)
-		rep.ResultCode = Success
-		return
-	}
+	// 	rep.ResultMsg = string(data)
+	// 	rep.ResultCode = Success
+	// 	return
+	// }
 
 	q := common.Question{
 		Message:        msg,

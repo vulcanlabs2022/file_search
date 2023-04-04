@@ -251,11 +251,16 @@ func updateOrInputDoc(filepath string) error {
 	}
 
 	filename := path.Base(filepath)
+	size := 0
+	fileInfo, err := os.Stat(filepath)
+	if err == nil {
+		size = int(fileInfo.Size())
+	}
 	doc := map[string]interface{}{
 		"name":        filename,
 		"where":       filepath,
 		"content":     content,
-		"size":        len([]byte(content)),
+		"size":        size,
 		"created":     time.Now().Unix(),
 		"updated":     time.Now().Unix(),
 		"format_name": rpc.FormatFilename(filename),

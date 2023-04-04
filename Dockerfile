@@ -45,6 +45,8 @@ RUN apt-get update
 RUN apt-get install -y poppler-utils wv unrtf tidy
 RUN apt-get install -y inotify-tools
 
+# RUN sysctl -w fs.inotify.max_user_watches=8192
+
 # Use an unprivileged user.
 USER gateway:gateway
 # Port on which the gateway service will be exposed.

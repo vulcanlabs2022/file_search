@@ -39,3 +39,5 @@ tmp/
 *.docx
 *.pdf
 data/
+
+docker-compose.yml

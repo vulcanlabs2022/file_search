@@ -98,13 +98,14 @@ code为0则成功，data为返回信息。小于0为错误，data为错误信息
      limit : 10,
      items: [
         {	
+              index: 'Files', //索引名，为Files或Rss
               name: 'aaa.js', //文件名
               docId: "5c6390bb-abc4-41c1-8e97-8215fe74a066", //文件编号
               where: "/131313/bbb", //路径
-              type: "js", //扩展名
+              type: ".js", //扩展名
               size: number, //字节数
               created : number, //创建时间戳
-              content：'' ， //文件内容
+              snippet:'' ， //高亮摘要，使用<mark>标签标注 例如：…and the second-smallest planet in the <mark>Solar</mark> <mark>System</mark>, larger only than Mercury. In the English language, Mars is named for the Roman god of war. Mars is a terrestrial planet with a thin atmosphere and h…
          }
     ]
    }

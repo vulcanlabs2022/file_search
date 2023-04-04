@@ -8,6 +8,7 @@ import (
 
 	"syscall"
 
+	"wzinc/db"
 	"wzinc/inotify"
 	"wzinc/rpc"
 
@@ -70,10 +71,15 @@ func Start(ctx *cli.Context) {
 	if password == "" {
 		password = "User#123"
 	}
-	modelUri := os.Getenv("ModelUri")
+	modelUri := os.Getenv("MODEL_URI")
+	mongoUri := os.Getenv("MONGO_URI")
+	if mongoUri != "" {
+		db.MongoURI = mongoUri
+	}
+	db.Init()
 
 	rpc.InitRpcService(url, port, username, password, map[string]string{"self-driving": modelUri})
-	
+
 	inotify.WatchPath(watchDir)
 	contx := context.Background()
 	err := rpc.RpcServer.Start(contx)

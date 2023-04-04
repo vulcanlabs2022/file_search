@@ -152,7 +152,7 @@ func (s *Service) HandleQuery(c *gin.Context) {
 		maxResults = DefaultMaxResult
 	}
 
-	results, err := s.zincQuery(index, term)
+	results, err := s.zincQuery(index, term, int32(maxResults))
 
 	if err != nil {
 		rep.ResultMsg = err.Error()
@@ -220,6 +220,7 @@ func shortQueryResult(res QueryResult) QueryItem {
 	if len(res.HightLights) > 0 {
 		snippet = res.HightLights[0]
 	}
+	fmt.Println(snippet)
 	return QueryItem{
 		Index:    res.Index,
 		Where:    res.Where,

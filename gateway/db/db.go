@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -16,7 +17,7 @@ var collection *mongo.Collection
 
 const LimitConversactionMsg = 20
 
-var MongoURI = ""
+var MongoURI = "mongodb://localhost:27017"
 
 type Message struct {
 	ConversationId string `json:"conversationId" bson:"conversationId"`
@@ -28,6 +29,7 @@ type Message struct {
 }
 
 func Init() {
+	fmt.Println(MongoURI)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	var err error
@@ -39,7 +41,7 @@ func Init() {
 	if err != nil {
 		log.Panic("ping mongo error", err)
 	}
-	collection = MgoCli.Database("civiliza").Collection("conversation")
+	collection = MgoCli.Database("terminus").Collection("conversation")
 }
 
 func InsertSingleConversation(msg Message) error {

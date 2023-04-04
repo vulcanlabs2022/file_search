@@ -49,7 +49,7 @@ func TestQueryFile(t *testing.T) {
 
 func TestQueryPath(t *testing.T) {
 	service := initTestService()
-	res, err := service.ZincQueryByPath(FileIndex, "/Users/houmingyu/Documents/web5/filesearch/data/aaa.txt")
+	res, err := service.ZincQueryByPath(FileIndex, "")
 	if err != nil {
 		panic(err)
 	}
@@ -237,7 +237,7 @@ func TestQuery(t *testing.T) {
 	url := zincUrl + "/api/_analyze"
 	req, err := http.NewRequest("POST", url, strings.NewReader(`{
 		"analyzer" : "keyword",
-		"text" : "/Users/houmingyu/Documents/web5/filesearch/data/ next/ff.txt"
+		"text" : ""
 	  }`))
 	if err != nil {
 		panic(err)
