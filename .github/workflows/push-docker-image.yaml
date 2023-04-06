@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest  # runner name : (ubuntu latest version) 
     steps:
     - name: Extract tag name
-      run: echo "TAG_NAME=${{ github.ref/refs\/tags\// }}" >> $GITHUB_ENV
+      run: echo "TAG_NAME=${{ env.GITHUB_REF }}" >> $GITHUB_ENV
     - uses: actions/checkout@v2 # first action : checkout source code
     - name: docker login
       run: | # log into docker hub account
