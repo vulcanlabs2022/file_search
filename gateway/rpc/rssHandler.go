@@ -57,6 +57,7 @@ func (s *Service) HandleRssInput(c *gin.Context) {
 	if err != nil {
 		rep.ResultMsg = err.Error()
 		c.JSON(http.StatusBadRequest, rep)
+		return
 	}
 	rssInput := RssInputRequest{
 		RssMeta: RssMeta{
@@ -72,6 +73,7 @@ func (s *Service) HandleRssInput(c *gin.Context) {
 	if err != nil {
 		rep.ResultMsg = err.Error()
 		c.JSON(http.StatusBadRequest, rep)
+		return
 	}
 
 	metaInfo, _ := json.Marshal(&rssInput.RssMeta)
@@ -105,10 +107,7 @@ func (s *Service) HandleRssDelete(c *gin.Context) {
 		}
 	}()
 
-	index := c.PostForm("index")
-	if index == "" {
-		index = RssIndex
-	}
+	index := RssIndex
 	docId := c.PostForm("docId")
 	if docId == "" {
 		rep.ResultCode = ErrorCodeDelete
@@ -139,10 +138,7 @@ func (s *Service) HandleRssQuery(c *gin.Context) {
 		}
 	}()
 
-	index := c.PostForm("index")
-	if index == "" {
-		index = RssIndex
-	}
+	index := RssIndex
 
 	term := c.PostForm("query")
 	if term == "" {

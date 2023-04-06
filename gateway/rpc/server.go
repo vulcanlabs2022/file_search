@@ -2,14 +2,16 @@ package rpc
 
 import (
 	"context"
-	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog/log"
-	zinc "github.com/zinclabs/sdk-go-zincsearch"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 	selfdriving "wzinc/ai/self-driving"
+
+	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
+	zinc "github.com/zinclabs/sdk-go-zincsearch"
 )
 
 const InternalError = "internal server error"
@@ -121,15 +123,18 @@ func (c *Service) Start(ctx context.Context) error {
 	r.GET("/healthcheck", func(c *gin.Context) {
 		c.String(http.StatusOK, "ok")
 	})
-	r.POST("/api/file/input", c.HandleInput)
-	r.POST("/api/file/delete", c.HandleDelete)
-	r.POST("/api/file/query", c.HandleQuery)
 
-	r.POST("/api/inotify/request", HandleInotifyEvent)
+	r.POST("/api/input", c.HandleInput)
+	r.POST("/api/delete", c.HandleDelete)
+	r.POST("/api/query", c.HandleQuery)
 
-	r.POST("/api/rss/input", c.HandleRssInput)
-	r.POST("/api/rss/delete", c.HandleRssDelete)
-	r.POST("/api/rss/query", c.HandleRssQuery)
+	// r.POST("/api/file/input", c.HandleFileInput)
+	// r.POST("/api/file/delete", c.HandleFileDelete)
+	// r.POST("/api/file/query", c.HandleFileQuery)
+
+	// r.POST("/api/rss/input", c.HandleRssInput)
+	// r.POST("/api/rss/delete", c.HandleRssDelete)
+	// r.POST("/api/rss/query", c.HandleRssQuery)
 
 	r.POST("/api/ai/question", c.HandleQuestion)
 	r.GET("/api/ai/refresh", HandleRefresh)
@@ -138,4 +143,55 @@ func (c *Service) Start(ctx context.Context) error {
 	go r.Run(address)
 	log.Info().Msgf("start rpc on port:%s", c.port)
 	return nil
+}
+
+func (s *Service) HandleInput(c *gin.Context) {
+	index := c.Query("index")
+	if index != FileIndex && index != RssIndex {
+		rep := Resp{
+			ResultCode: ErrorCodeUnknow,
+			ResultMsg:  fmt.Sprintf("only support index %s&%s", FileIndex, RssIndex),
+		}
+		c.JSON(http.StatusBadRequest, rep)
+	}
+	if index == FileIndex {
+		s.HandleFileInput(c)
+	}
+	if index == RssIndex {
+		s.HandleRssInput(c)
+	}
+}
+
+func (s *Service) HandleDelete(c *gin.Context) {
+	index := c.Query("index")
+	if index != FileIndex && index != RssIndex {
+		rep := Resp{
+			ResultCode: ErrorCodeUnknow,
+			ResultMsg:  fmt.Sprintf("only support index %s&%s", FileIndex, RssIndex),
+		}
+		c.JSON(http.StatusBadRequest, rep)
+	}
+	if index == FileIndex {
+		s.HandleFileDelete(c)
+	}
+	if index == RssIndex {
+		s.HandleRssDelete(c)
+	}
+}
+
+func (s *Service) HandleQuery(c *gin.Context) {
+	index := c.Query("index")
+	if index != FileIndex && index != RssIndex {
+		rep := Resp{
+			ResultCode: ErrorCodeUnknow,
+			ResultMsg:  fmt.Sprintf("only support index %s&%s", FileIndex, RssIndex),
+		}
+		c.JSON(http.StatusBadRequest, rep)
+	}
+	if index == FileIndex {
+		s.HandleFileQuery(c)
+	}
+	if index == RssIndex {
+		s.HandleRssQuery(c)
+	}
 }

@@ -30,7 +30,7 @@ http://localhost:6317
 
 code为0则成功，data为返回信息。小于0为错误，data为错误信息。
 
-### 添加文件 http://127.0.0.1:6317/api/file/input
+### 添加文件 http://127.0.0.1:6317/api/input?index=Files
 
 #### 请求格式
 post请求使用表单格式
@@ -57,7 +57,7 @@ Content-Type:multipart/form-data
 }
 ```
 
-### 删除文件 http://127.0.0.1:6317/api/file/delete
+### 删除文件 http://127.0.0.1:6317/api/delete?index=Files
 
 #### 请求格式
 post请求使用表单格式
@@ -79,7 +79,7 @@ Content-Type:multipart/form-data
 }
 ```
 
-### 查找文件 http://127.0.0.1:6317/api/file/query
+### 查找文件 http://127.0.0.1:6317/api/query?index=Files
 
 #### 请求格式
 post请求使用表单格式
@@ -118,7 +118,7 @@ Content-Type:multipart/form-data
 }
 ```
 
-### 添加RSS http://127.0.0.1:6317/api/rss/input
+### 添加RSS http://127.0.0.1:6317/api/input?index=Rss
 
 #### 请求格式
 Post Json
@@ -153,7 +153,7 @@ Post Json
 ```
 
 
-### 删除Rss http://127.0.0.1:6317/api/rss/delete
+### 删除Rss http://127.0.0.1:6317/api/delete?index=Rss
 
 #### 请求格式
 post请求使用表单格式
@@ -176,7 +176,7 @@ Content-Type:multipart/form-data
 ```
 
 
-### 查找Rss http://127.0.0.1:6317/api/rss/query
+### 查找Rss http://127.0.0.1:6317/api/query?index=Rss
 
 #### 请求格式
 post请求使用表单格式
