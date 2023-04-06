@@ -20,7 +20,7 @@ type FileQueryResp struct {
 	Items  []FileQueryItem `json:"items"`
 }
 
-func (s *Service) HandleInput(c *gin.Context) {
+func (s *Service) HandleFileInput(c *gin.Context) {
 	rep := Resp{
 		ResultCode: ErrorCodeUnknow,
 		ResultMsg:  "",
@@ -31,10 +31,7 @@ func (s *Service) HandleInput(c *gin.Context) {
 		}
 	}()
 
-	index := c.PostForm("index")
-	if index == "" {
-		index = FileIndex
-	}
+	index := FileIndex
 
 	filename := c.PostForm("filename")
 
@@ -91,7 +88,7 @@ func (s *Service) HandleInput(c *gin.Context) {
 	rep.ResultMsg = string(id)
 }
 
-func (s *Service) HandleDelete(c *gin.Context) {
+func (s *Service) HandleFileDelete(c *gin.Context) {
 	rep := Resp{
 		ResultCode: ErrorCodeUnknow,
 		ResultMsg:  "",
@@ -102,10 +99,7 @@ func (s *Service) HandleDelete(c *gin.Context) {
 		}
 	}()
 
-	index := c.PostForm("index")
-	if index == "" {
-		index = FileIndex
-	}
+	index := FileIndex
 	docId := c.PostForm("docId")
 	if docId == "" {
 		rep.ResultCode = ErrorCodeDelete
@@ -124,7 +118,7 @@ func (s *Service) HandleDelete(c *gin.Context) {
 	rep.ResultMsg = docId
 }
 
-func (s *Service) HandleQuery(c *gin.Context) {
+func (s *Service) HandleFileQuery(c *gin.Context) {
 	rep := Resp{
 		ResultCode: ErrorCodeUnknow,
 		ResultMsg:  "",
@@ -136,10 +130,7 @@ func (s *Service) HandleQuery(c *gin.Context) {
 		}
 	}()
 
-	index := c.PostForm("index")
-	if index == "" {
-		index = FileIndex
-	}
+	index := FileIndex
 
 	term := c.PostForm("query")
 	if term == "" {
