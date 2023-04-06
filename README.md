@@ -2,7 +2,7 @@
 ## Install
 拉取镜像
 ```sh
-docker pull calehh/file_search:v0.2.2
+docker pull calehh/file_search:latest
 ```
 https://hub.docker.com/repository/docker/calehh/file_search
 

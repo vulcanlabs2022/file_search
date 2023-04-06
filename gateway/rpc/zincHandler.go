@@ -77,10 +77,12 @@ func (s *Service) HandleFileInput(c *gin.Context) {
 		"format_name": FormatFilename(filename),
 	}
 
+	log.Info().Msgf("add input file index %s doc %v", index, doc)
 	id, err := s.ZincInput(index, doc)
 	if err != nil {
 		rep.ResultCode = ErrorCodeInput
 		rep.ResultMsg = err.Error()
+		log.Error().Msgf("zinc input error %s", err.Error())
 		c.JSON(http.StatusBadRequest, rep)
 		return
 	}
@@ -107,10 +109,12 @@ func (s *Service) HandleFileDelete(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rep)
 		return
 	}
+	log.Info().Msgf("zinc delete index %s docid%s", index, docId)
 	_, err := s.ZincDelete(docId, index)
 	if err != nil {
 		rep.ResultCode = ErrorCodeDelete
 		rep.ResultMsg = err.Error()
+		log.Error().Msgf("zinc delete error %s", err.Error())
 		c.JSON(http.StatusBadRequest, rep)
 		return
 	}
@@ -143,11 +147,12 @@ func (s *Service) HandleFileQuery(c *gin.Context) {
 	if err != nil {
 		maxResults = DefaultMaxResult
 	}
-
+	log.Info().Msgf("zinc query index %s term %s max %v", index, term, maxResults)
 	results, err := s.zincQuery(index, term, int32(maxResults))
 
 	if err != nil {
 		rep.ResultMsg = err.Error()
+		log.Error().Msg(rep.ResultMsg)
 		c.JSON(http.StatusNotFound, rep)
 		return
 	}

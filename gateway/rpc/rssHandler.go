@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
 )
 
 type RssQueryResp struct {
@@ -85,10 +86,12 @@ func (s *Service) HandleRssInput(c *gin.Context) {
 		"meta":        string(metaInfo),
 	}
 
+	log.Info().Msgf("add input rss index %s doc %v", RssIndex, doc)
 	id, err := s.ZincInput(RssIndex, doc)
 	if err != nil {
 		rep.ResultCode = ErrorCodeInput
 		rep.ResultMsg = err.Error()
+		log.Error().Msgf("input rss error", err.Error())
 		c.JSON(http.StatusBadRequest, rep)
 		return
 	}
@@ -115,10 +118,12 @@ func (s *Service) HandleRssDelete(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rep)
 		return
 	}
+	log.Info().Msgf("zinc delete index %s docid%s", index, docId)
 	_, err := s.ZincDelete(docId, index)
 	if err != nil {
 		rep.ResultCode = ErrorCodeDelete
 		rep.ResultMsg = err.Error()
+		log.Error().Msgf("zinc delete error %s", err.Error())
 		c.JSON(http.StatusBadRequest, rep)
 		return
 	}
@@ -151,10 +156,11 @@ func (s *Service) HandleRssQuery(c *gin.Context) {
 	if err != nil {
 		maxResults = DefaultMaxResult
 	}
-
+	log.Info().Msgf("zinc query index %s term %s max %v", index, term, maxResults)
 	res, err := s.ZincRawQuery(index, term, int32(maxResults))
 	if err != nil {
 		rep.ResultMsg = "zincsearch query error" + err.Error()
+		log.Error().Msg(rep.ResultMsg)
 		c.JSON(http.StatusBadRequest, rep)
 		return
 	}
@@ -162,6 +168,7 @@ func (s *Service) HandleRssQuery(c *gin.Context) {
 	results, err := GetRssQueryResult(res)
 	if err != nil {
 		rep.ResultMsg = "zincsearch query error" + err.Error()
+		log.Error().Msg(rep.ResultMsg)
 		c.JSON(http.StatusBadRequest, rep)
 		return
 	}

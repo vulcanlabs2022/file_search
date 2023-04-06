@@ -4,7 +4,7 @@ on:
     branches:
       - master # When pushing to main branch then run this action
     tags:
-      - '*'
+      - "*"
 # Env variable
 env:
   DOCKER_USER: ${{secrets.DOCKER_USER}}
@@ -12,16 +12,20 @@ env:
   REPO_NAME: ${{secrets.REPO_NAME}}
 
 jobs:
-  push-image-to-docker-hub:  # job name
-    runs-on: ubuntu-latest  # runner name : (ubuntu latest version) 
+  push-image-to-docker-hub: # job name
+    runs-on: ubuntu-latest # runner name : (ubuntu latest version)
     steps:
-    - name: Extract tag name
-      run: echo "TAG_NAME=${{ env.GITHUB_REF }}" >> $GITHUB_ENV
-    - uses: actions/checkout@v2 # first action : checkout source code
-    - name: docker login
-      run: | # log into docker hub account
-        docker login -u $DOCKER_USER -p $DOCKER_PASSWORD  
-    - name: Build the Docker image # push The image to the docker hub
-      run: docker build . --file Dockerfile --tag $DOCKER_USER/$REPO_NAME:v0.2.2
-    - name: Docker Push
-      run: docker push $DOCKER_USER/$REPO_NAME:v0.2.2
+      - name: Extract tag name
+        run: echo "TAG_NAME=${{ env.GITHUB_REF }}" >> $GITHUB_ENV
+      - uses: actions/checkout@v2 # first action : checkout source code
+      - name: docker login
+        run: | # log into docker hub account
+          docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
+      - name: Build the Docker image # push The image to the docker hub
+        run: docker build . --file Dockerfile --tag $DOCKER_USER/$REPO_NAME:v0.2.3
+      - name: Build the Docker image tag
+        run: docker build . --file Dockerfile --tag $DOCKER_USER/$REPO_NAME:latest
+      - name: Docker Push Tag
+        run: docker push $DOCKER_USER/$REPO_NAME:v0.2.3
+      - name: Docker Push Latest
+        run: docker push $DOCKER_USER/$REPO_NAME:latest
