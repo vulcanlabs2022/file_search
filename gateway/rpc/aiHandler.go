@@ -108,33 +108,11 @@ func (s *Service) HandleQuestion(c *gin.Context) {
 		}
 	}
 
-	//load history status
-	msg_id := userStatus.MessageId
-	conv_id := userStatus.ConversationId
-	if modelName != userStatus.Model {
-		msg_id = ""
-		conv_id = ""
-	}
-
-	//check sensitive
-	// if trie.IsSensitive(msg) {
-	// 	log.Warn().Msgf("sensitive message: %s", msg)
-	// 	var data []byte
-	// 	data, _ = json.Marshal(&ProxyResponse{
-	// 		Text:           SensitiveResponse,
-	// 		MessageId:      "",
-	// 		ConversationId: "",
-	// 		Model:          modelName,
-	// 	})
-
-	// 	rep.ResultMsg = string(data)
-	// 	rep.ResultCode = Success
-	// 	return
-	// }
+	conv_id := c.PostForm("conversationId")
 
 	q := common.Question{
 		Message:        msg,
-		MessageId:      msg_id,
+		MessageId:      "",
 		ConversationId: conv_id,
 		Model:          modelName,
 	}

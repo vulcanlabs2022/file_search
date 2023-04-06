@@ -137,7 +137,7 @@ func (c *Service) Start(ctx context.Context) error {
 	// r.POST("/api/rss/query", c.HandleRssQuery)
 
 	r.POST("/api/ai/question", c.HandleQuestion)
-	r.GET("/api/ai/refresh", HandleRefresh)
+	// r.GET("/api/ai/refresh", HandleRefresh)
 	address := "0.0.0.0:" + c.port
 
 	go r.Run(address)

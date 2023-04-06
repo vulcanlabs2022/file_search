@@ -216,3 +216,35 @@ Content-Type:multipart/form-data
    }
 }
 ```
+
+
+### AI聊天 http://127.0.0.1:6317/api/ai/question
+
+AI聊天的过程为用户提问，AI回复，轮流进行。AI会基于之前的聊天记录和新问题做出回复。使用conversactionId标识聊天，使用messageId标识一次回复。
+
+#### 请求格式
+post请求使用表单格式
+
+Content-Type:multipart/form-data
+
+#### 请求字段：
+
+| 请求字段       | 类型   | 备注                                         |
+| -------------- | ------ | -------------------------------------------- |
+| message        | string | 提问内容                                     |
+| model          | string | AI模型名称                                   |
+| conversationId | string | 继续一段聊天则填入聊天ID，开始新的聊天则为空 |
+
+#### 返回：
+
+```
+{
+   code: 0
+   data : {
+      text:"hello",
+      messageId:"e3665eb4-68b2-4f3e-bbe7-9f34180cd0db",
+      conversationId:"3cdaa5d8-1801-4e4f-a672-aaa01da33d62",
+      model:"self-driving"
+   }
+}
+```
