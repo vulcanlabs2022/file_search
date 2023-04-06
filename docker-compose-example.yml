@@ -27,7 +27,7 @@ services:
     #   - /data/zincsearch/data:/data
 
   searcher:
-    image: calehh/file_search:dev
+    image: calehh/file_search:latest
     depends_on:
       - db
       - zincsearch

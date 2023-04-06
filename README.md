@@ -1,14 +1,8 @@
 # File Search
 ## Install
-Build Docker Image:
-
-```sh
-docker build -t calehh/file_search:dev .
-```
-
 拉取镜像
 ```sh
-docker pull calehh/file_search:dev
+docker pull calehh/file_search:latest
 ```
 https://hub.docker.com/repository/docker/calehh/file_search
 
