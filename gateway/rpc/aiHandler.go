@@ -3,12 +3,15 @@ package rpc
 import (
 	"context"
 	"encoding/json"
-	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog/log"
 	"net/http"
+	"os"
 	"time"
 	"wzinc/common"
 	"wzinc/db"
+	"wzinc/parser"
+
+	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
 )
 
 const SensitiveResponse = "Sorry, as an artificial intelligence, I am unable to provide you with a standardized and satisfactory answer to your question. We will continuously optimize the system to provide better service. Thank you for your question."
@@ -109,12 +112,27 @@ func (s *Service) HandleQuestion(c *gin.Context) {
 	}
 
 	conv_id := c.PostForm("conversationId")
+	filePath := c.PostForm("path")
+	if filePath != "" {
+		fileInfo, err := os.Stat(filePath)
+		if err != nil {
+			rep.ResultMsg = err.Error()
+			log.Error().Msg(rep.ResultMsg)
+			return
+		}
+		if !parser.IsParseAble(fileInfo.Name()) {
+			rep.ResultMsg = "file not parsable"
+			log.Error().Msg(rep.ResultMsg)
+			return
+		}
+	}
 
 	q := common.Question{
 		Message:        msg,
 		MessageId:      "",
 		ConversationId: conv_id,
 		Model:          modelName,
+		FilePath:       filePath,
 	}
 	pendingQ := pendingQuestion{
 		data:   q,

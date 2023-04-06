@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/rs/zerolog/log"
 	"time"
 	"wzinc/common"
 	"wzinc/db"
+
+	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 )
 
 const MaxMsgLogLength = 50
@@ -77,6 +78,13 @@ func (c *Client) buildPromt(q *common.Question) BSRequest {
 }
 
 func (c *Client) GetAnswer(ctx context.Context, q common.Question) (*common.QA, error) {
+	if q.FilePath == "" {
+		return c.getAnswerWorld(ctx, q)
+	}
+	return c.getAnswerFile(ctx, q)
+}
+
+func (c *Client) getAnswerWorld(ctx context.Context, q common.Question) (*common.QA, error) {
 	prompt := c.buildPromt(&q)
 	log.Debug().Msg("self driving model" + q.Model + "prompt:\n" + fmt.Sprintf("%v", prompt))
 	promptData, err := json.Marshal(&prompt)
@@ -85,6 +93,35 @@ func (c *Client) GetAnswer(ctx context.Context, q common.Question) (*common.QA, 
 		return nil, err
 	}
 	resp, err := common.HttpPost(c.Url, string(promptData), MaxPostTimeOut, map[string]string{})
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil, err
+	}
+	var bsResp BSResponse
+	err = json.Unmarshal(resp, &bsResp)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil, err
+	}
+	if q.ConversationId == "" {
+		q.ConversationId = uuid.New().String()
+	}
+	qa := common.QA{
+		Question:       q,
+		AnswerRole:     "assitant",
+		Answer:         bsResp.Response,
+		MessageId:      uuid.NewString(),
+		ConversationId: q.ConversationId,
+		Model:          c.ModelName,
+	}
+	return &qa, nil
+}
+
+func (c *Client) getAnswerFile(ctx context.Context, q common.Question) (*common.QA, error) {
+	resp, err := common.HttpPostFile(c.Url, MaxPostTimeOut, map[string]string{
+		common.PostFileParamKey:  q.FilePath,
+		common.PostQueryParamKey: q.Message,
+	})
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return nil, err

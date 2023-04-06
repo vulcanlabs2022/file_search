@@ -16,6 +16,12 @@ var ParseAble = map[string]bool{
 	".txt":  true,
 }
 
+func IsParseAble(filename string) bool {
+	fileType := GetTypeFromName(filename)
+	_, ok := ParseAble[fileType]
+	return ok
+}
+
 func GetTypeFromName(filename string) string {
 	return strings.ToLower(path.Ext(filename))
 }

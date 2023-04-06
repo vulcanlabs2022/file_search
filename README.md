@@ -234,6 +234,7 @@ Content-Type:multipart/form-data
 | message        | string | 提问内容                                     |
 | model          | string | AI模型名称                                   |
 | conversationId | string | 继续一段聊天则填入聊天ID，开始新的聊天则为空 |
+| path           | string | 基于该路径回答，为空则基于模型知识           |
 
 #### 返回：
 

@@ -5,6 +5,7 @@ type Question struct {
 	MessageId      string `json:"messageId"`
 	ConversationId string `json:"conversationId"`
 	Model          string `json:"model"`
+	FilePath       string `json:"filepath"`
 }
 
 type QA struct {
