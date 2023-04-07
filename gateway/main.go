@@ -34,7 +34,7 @@ const DefaultPort = "6317"
 
 func init() {
 	app = cli.NewApp()
-	app.Version = "v0.2.7"
+	app.Version = "v0.2.8"
 	app.Commands = []cli.Command{
 		commandStart,
 	}

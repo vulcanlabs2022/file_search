@@ -44,6 +44,7 @@ COPY --from=builder /go/src/gateway/wzinc /go/bin/wzinc
 RUN apt-get update
 RUN apt-get install -y poppler-utils wv unrtf tidy
 RUN apt-get install -y inotify-tools
+RUN apt-get install -y ca-certificates curl
 
 # RUN sysctl -w fs.inotify.max_user_watches=8192
 
