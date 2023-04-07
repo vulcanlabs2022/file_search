@@ -11,6 +11,7 @@ import (
 	"wzinc/parser"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
@@ -45,16 +46,34 @@ func (s *Service) checkOneQuestion(qu pendingQuestion) {
 		return
 	default:
 		defer close(qu.resp)
-		if _, ok := s.bsApiClient[qu.data.Model]; ok {
-			err := s.handleBsQuestion(qu)
-			if err != nil {
-				log.Error().Msgf("handle bs question error %s", err.Error())
-			}
-			return
-		}
-		log.Error().Msgf("model not exist name%s", qu.data.Model)
+		// if _, ok := s.bsApiClient[qu.data.Model]; ok {
+		// 	err := s.handleBsQuestion(qu)
+		// 	if err != nil {
+		// 		log.Error().Msgf("handle bs question error %s", err.Error())
+		// 	}
+		// 	return
+		// }
+		// log.Error().Msgf("model not exist name%s", qu.data.Model)
+		s.handleFakeBsQuestion(qu)
 		return
 	}
+}
+
+func (s *Service) handleFakeBsQuestion(qu pendingQuestion) error {
+	conversationId := qu.data.ConversationId
+	if conversationId == "" {
+		conversationId = uuid.New().String()
+	}
+	res := RelayResponse{
+		Url:            "",
+		Text:           "Hello, this is test",
+		MessageId:      uuid.New().String(),
+		ConversationId: conversationId,
+		Model:          "test",
+	}
+	log.Info().Msgf("question: %s \n answer: %s \n model: %s", qu.data.Message, res.Text, res.Model)
+	qu.resp <- res
+	return nil
 }
 
 func (s *Service) handleBsQuestion(qu pendingQuestion) error {
@@ -103,13 +122,6 @@ func (s *Service) HandleQuestion(c *gin.Context) {
 		return
 	}
 	modelName := c.PostForm("model")
-	if _, ok := s.bsApiClient[modelName]; !ok {
-		if modelName != "" {
-			rep.ResultMsg = "model name not correct" + modelName
-			log.Error().Msg(rep.ResultMsg)
-			return
-		}
-	}
 
 	conv_id := c.PostForm("conversationId")
 	filePath := c.PostForm("path")
