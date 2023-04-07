@@ -14,7 +14,7 @@ import (
 
 const MaxMsgLogLength = 50
 const MaxPromtLength = 20480
-const MaxPostTimeOut = 180
+const MaxPostTimeOut = 300
 
 var MaxConversactionSuspend = 60 * 60 //1 hour
 

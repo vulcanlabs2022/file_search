@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"time"
 	selfdriving "wzinc/ai/self-driving"
 
 	"github.com/gin-gonic/gin"
@@ -39,8 +38,6 @@ const DefaultMaxResult = 10
 
 var once sync.Once
 
-var client *http.Client
-
 var RpcServer *Service
 
 var maxPendingLength = 30
@@ -52,15 +49,12 @@ type Service struct {
 	password         string
 	apiClient        *zinc.APIClient
 	bsApiClient      map[string]*selfdriving.Client //modelname -> client
-	relaysStateLock  sync.RWMutex
 	questionCh       chan (pendingQuestion)
 	maxPendingLength int
 }
 
 func InitRpcService(url, port, username, password string, bsModelConfig map[string]string) {
 	once.Do(func() {
-		//init zinc api client
-		client = &http.Client{Timeout: time.Minute * 3}
 		configuration := zinc.NewConfiguration()
 		configuration.Servers = zinc.ServerConfigurations{
 			zinc.ServerConfiguration{

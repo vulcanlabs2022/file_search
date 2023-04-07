@@ -31,15 +31,24 @@ OPTIONS:
 var app *cli.App
 
 const DefaultPort = "6317"
+const VersionName = "0.2.5"
 
 func init() {
 	app = cli.NewApp()
 	app.Version = "v1.0.0"
 	app.Commands = []cli.Command{
 		commandStart,
+		commandVersion,
 	}
 
 	cli.CommandHelpTemplate = OriginCommandHelpTemplate
+}
+
+var commandVersion = cli.Command{
+	Name:   "version",
+	Usage:  "version",
+	Flags:  []cli.Flag{},
+	Action: Version,
 }
 
 var commandStart = cli.Command{
@@ -47,6 +56,10 @@ var commandStart = cli.Command{
 	Usage:  "start loading contract gas fee",
 	Flags:  []cli.Flag{},
 	Action: Start,
+}
+
+func Version(ctx *cli.Context) {
+	fmt.Println(VersionName)
 }
 
 func Start(ctx *cli.Context) {

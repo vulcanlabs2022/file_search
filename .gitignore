@@ -41,3 +41,5 @@ tmp/
 data/
 
 docker-compose.yml
+.vscode/
+.VSCodeCounter/
