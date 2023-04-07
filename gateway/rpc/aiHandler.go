@@ -17,6 +17,8 @@ import (
 
 const SensitiveResponse = "Sorry, as an artificial intelligence, I am unable to provide you with a standardized and satisfactory answer to your question. We will continuously optimize the system to provide better service. Thank you for your question."
 const WaitForAIAnswer = time.Minute * 3
+const ChatModelName = "chat_model"
+const FileModelName = "file_model"
 
 var userStatus UserStatus
 
@@ -46,15 +48,15 @@ func (s *Service) checkOneQuestion(qu pendingQuestion) {
 		return
 	default:
 		defer close(qu.resp)
-		// if _, ok := s.bsApiClient[qu.data.Model]; ok {
-		// 	err := s.handleBsQuestion(qu)
-		// 	if err != nil {
-		// 		log.Error().Msgf("handle bs question error %s", err.Error())
-		// 	}
-		// 	return
-		// }
-		// log.Error().Msgf("model not exist name%s", qu.data.Model)
-		s.handleFakeBsQuestion(qu)
+		if _, ok := s.bsApiClient[qu.data.Model]; ok {
+			err := s.handleBsQuestion(qu)
+			if err != nil {
+				log.Error().Msgf("handle bs question error %s", err.Error())
+			}
+			return
+		}
+		log.Error().Msgf("model not exist name%s", qu.data.Model)
+		// s.handleFakeBsQuestion(qu)
 		return
 	}
 }
@@ -121,11 +123,12 @@ func (s *Service) HandleQuestion(c *gin.Context) {
 		log.Error().Msg(rep.ResultMsg)
 		return
 	}
-	modelName := c.PostForm("model")
 
 	conv_id := c.PostForm("conversationId")
 	filePath := c.PostForm("path")
+	modelName := ChatModelName
 	if filePath != "" {
+		modelName = FileModelName
 		fileInfo, err := os.Stat(filePath)
 		if err != nil {
 			rep.ResultMsg = err.Error()

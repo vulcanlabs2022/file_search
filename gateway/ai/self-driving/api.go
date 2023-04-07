@@ -56,7 +56,7 @@ func (c *Client) buildPromt(q *common.Question) BSRequest {
 	conversationFrom := time.Now().Unix() - int64(MaxConversactionSuspend)
 	msgLog, err := db.GetResentConversation(q.ConversationId, conversationFrom)
 	if err != nil {
-		log.Error().Msgf("GetResentConversation conversationid %s from timestamp %s error %s", q.ConversationId, conversationFrom, err)
+		log.Error().Msgf("GetResentConversation conversationid %s from timestamp %v error %s", q.ConversationId, conversationFrom, err.Error())
 	}
 	if err == nil {
 		for i := len(msgLog) - 1; i >= 0; i-- {

@@ -14,7 +14,7 @@ import (
 )
 
 const PostFileParamKey = "file"
-const PostQueryParamKey  = "query"
+const PostQueryParamKey = "query"
 
 func HttpPostFile(requrl string, timeoutS int, params map[string]string) (payload []byte, err error) {
 	var requestBody bytes.Buffer
@@ -27,7 +27,7 @@ func HttpPostFile(requrl string, timeoutS int, params map[string]string) (payloa
 				return nil, err
 			}
 			defer file.Close()
-			part, err := multipartWriter.CreateFormFile("file", filepath.Base(value))
+			part, err := multipartWriter.CreateFormFile("file", filepath.Base(file.Name()))
 			if err != nil {
 				return nil, err
 			}
@@ -38,6 +38,7 @@ func HttpPostFile(requrl string, timeoutS int, params map[string]string) (payloa
 		}
 		multipartWriter.WriteField(key, value)
 	}
+	multipartWriter.Close()
 
 	req, err := http.NewRequest("POST", requrl, &requestBody)
 	if err != nil {

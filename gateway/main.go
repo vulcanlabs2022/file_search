@@ -34,7 +34,7 @@ const DefaultPort = "6317"
 
 func init() {
 	app = cli.NewApp()
-	app.Version = "v0.2.6"
+	app.Version = "v0.2.7"
 	app.Commands = []cli.Command{
 		commandStart,
 	}
@@ -71,14 +71,18 @@ func Start(ctx *cli.Context) {
 	if password == "" {
 		password = "User#123"
 	}
-	modelUri := os.Getenv("MODEL_URI")
+	chatModelUri := os.Getenv("CHAT_MODEL_URI")
+	fileModelUri := os.Getenv("FILE_MODEL_URI")
 	mongoUri := os.Getenv("MONGO_URI")
 	if mongoUri != "" {
 		db.MongoURI = mongoUri
 	}
 	db.Init()
 
-	rpc.InitRpcService(url, port, username, password, map[string]string{"self-driving": modelUri})
+	rpc.InitRpcService(url, port, username, password, map[string]string{
+		rpc.ChatModelName: chatModelUri,
+		rpc.FileModelName: fileModelUri,
+	})
 
 	inotify.WatchPath(watchDir)
 	contx := context.Background()

@@ -39,7 +39,8 @@ services:
       - ZINC_FIRST_ADMIN_USER=admin
       - ZINC_FIRST_ADMIN_PASSWORD=User#123
       - ZINC_URI=http://zincsearch:4080
-      - MODEL_URI=http://localhost/ai #AI模型接口
+      - CHAT_MODEL_URI=http://localhost/ai/chat #AI世界知识模型URI
+      - FILE_MODEL_URI=http://localhost/ai/file #AI文档理解模型URI
     volumes:
       #需要挂载待监控的数据文件目录到容器的相同目录，以保证搜索返回的路径正确。注意避免和ubuntu已有目录冲突。
       - /data/filesdir:/data/filesdir:ro
