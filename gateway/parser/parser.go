@@ -10,10 +10,12 @@ import (
 )
 
 var ParseAble = map[string]bool{
-	".doc":  true,
-	".docx": true,
-	".pdf":  true,
-	".txt":  true,
+	".doc":      true,
+	".docx":     true,
+	".pdf":      true,
+	".txt":      true,
+	".md":       true,
+	".markdown": true,
 }
 
 func IsParseAble(filename string) bool {
@@ -31,7 +33,7 @@ func ParseDoc(f io.Reader, filename string) (string, error) {
 	if _, ok := ParseAble[fileType]; !ok {
 		return "", nil
 	}
-	if fileType == ".txt" {
+	if fileType == ".txt" || fileType == ".md" || fileType == ".markdown" {
 		data, err := ioutil.ReadAll(f)
 		if err != nil {
 			return "", err
