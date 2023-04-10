@@ -156,9 +156,11 @@ func (s *Service) HandleFileQuery(c *gin.Context) {
 		c.JSON(http.StatusNotFound, rep)
 		return
 	}
+	log.Debug().Msgf("zinc query results %v", results)
 
 	rep.ResultCode = Success
 	items := slashFileQueryResult(results)
+	log.Debug().Msgf("zinc query items %v", items)
 	response := FileQueryResp{
 		Count:  len(items),
 		Offset: 0,
@@ -167,6 +169,7 @@ func (s *Service) HandleFileQuery(c *gin.Context) {
 	}
 	repMsg, _ := json.Marshal(&response)
 	rep.ResultMsg = string(repMsg)
+	log.Debug().Msgf("response data %s", rep.ResultMsg)
 }
 
 type FileQueryItem struct {
