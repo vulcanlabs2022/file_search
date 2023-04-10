@@ -11,16 +11,14 @@ import (
 	"wzinc/parser"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
 const SensitiveResponse = "Sorry, as an artificial intelligence, I am unable to provide you with a standardized and satisfactory answer to your question. We will continuously optimize the system to provide better service. Thank you for your question."
-const WaitForAIAnswer = time.Minute * 3
+const WaitForAIAnswer = time.Minute * 5
 const ChatModelName = "chat_model"
 const FileModelName = "file_model"
-
-var userStatus UserStatus
+const PostCallbackTimeout = 60
 
 func (s *Service) StartChatService(ctx context.Context) {
 	//max concurrent questions
@@ -31,76 +29,29 @@ func (s *Service) StartChatService(ctx context.Context) {
 			return
 		case qu := <-s.questionCh:
 			handling <- struct{}{}
-			log.Debug().Msgf("try send question to relay %s", qu.data)
+			log.Debug().Msgf("try send question to relay %s", qu.Data)
 			go func() {
 				s.checkOneQuestion(qu)
-				log.Debug().Msgf("question to relay done %s", qu.data)
+				log.Debug().Msgf("question to relay done %s", qu.Data)
 				<-handling
 			}()
 		}
 	}
 }
 
-func (s *Service) checkOneQuestion(qu pendingQuestion) {
-	select {
-	case <-qu.cancel:
-		log.Warn().Msgf("close for timeout %v", qu.data)
-		return
-	default:
-		defer close(qu.resp)
-		if _, ok := s.bsApiClient[qu.data.Model]; ok {
-			err := s.handleBsQuestion(qu)
-			if err != nil {
-				log.Error().Msgf("handle bs question error %s", err.Error())
-			}
-			return
+func (s *Service) checkOneQuestion(qu common.PendingQuestion) {
+	defer close(qu.Finish)
+	if client, ok := s.bsApiClient[qu.Data.Model]; ok {
+		ctx, cancel := context.WithCancel(qu.Ctx)
+		defer cancel()
+		err := client.GetAnswer(ctx, qu)
+		if err != nil {
+			log.Error().Msgf("handle bs question error %s", err.Error())
 		}
-		log.Error().Msgf("model not exist name%s", qu.data.Model)
-		// s.handleFakeBsQuestion(qu)
 		return
 	}
-}
-
-func (s *Service) handleFakeBsQuestion(qu pendingQuestion) error {
-	conversationId := qu.data.ConversationId
-	if conversationId == "" {
-		conversationId = uuid.New().String()
-	}
-	res := RelayResponse{
-		Url:            "",
-		Text:           "Hello, this is test",
-		MessageId:      uuid.New().String(),
-		ConversationId: conversationId,
-		Model:          "test",
-	}
-	log.Info().Msgf("question: %s \n answer: %s \n model: %s", qu.data.Message, res.Text, res.Model)
-	qu.resp <- res
-	return nil
-}
-
-func (s *Service) handleBsQuestion(qu pendingQuestion) error {
-	client, _ := s.bsApiClient[qu.data.Model]
-	qa, err := client.GetAnswer(context.Background(), qu.data)
-	if err != nil {
-		return err
-	}
-	res := RelayResponse{
-		Url:            client.Url,
-		Text:           qa.Answer,
-		MessageId:      qa.MessageId,
-		ConversationId: qa.ConversationId,
-		Model:          qu.data.Model,
-	}
-	log.Info().Msgf("question: %s \n answer: %s \n model: %s", qu.data.Message, res.Text, res.Model)
-	qu.resp <- res
-	return nil
-}
-
-func HandleRefresh(c *gin.Context) {
-	defer func() {
-		c.String(http.StatusOK, "success")
-	}()
-	userStatus = emptyStatus
+	log.Error().Msgf("model not exist name%s", qu.Data.Model)
+	return
 }
 
 func (s *Service) HandleQuestion(c *gin.Context) {
@@ -142,6 +93,8 @@ func (s *Service) HandleQuestion(c *gin.Context) {
 		}
 	}
 
+	callbackUri := c.PostForm("callback")
+
 	q := common.Question{
 		Message:        msg,
 		MessageId:      "",
@@ -149,68 +102,125 @@ func (s *Service) HandleQuestion(c *gin.Context) {
 		Model:          modelName,
 		FilePath:       filePath,
 	}
-	pendingQ := pendingQuestion{
-		data:   q,
-		resp:   make(chan RelayResponse, 1),
-		cancel: make(chan struct{}),
+	ctx, _ := context.WithTimeout(context.Background(), WaitForAIAnswer)
+	go s.questionCallback(ctx, q, callbackUri)
+	rep.ResultCode = Success
+	rep.ResultMsg = "ok"
+}
+
+func (s *Service) questionCallback(ctx context.Context, q common.Question, callbackUri string) {
+	pendingCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	pendingQ := common.PendingQuestion{
+		Data:   q,
+		Chunk:  make(chan common.RelayResponse),
+		Finish: make(chan common.AnswerStreamFinish, 1),
+		Ctx:    pendingCtx,
 	}
-	defer close(pendingQ.cancel)
-
-	timer := time.NewTimer(WaitForAIAnswer)
-
+	totalAnswer := ""
 	select {
-	case <-timer.C:
-		log.Warn().Msgf("pending question time out %v", q)
-		statusCode = http.StatusGatewayTimeout
-		rep.ResultMsg = "AI model handle question timeout"
+	case <-ctx.Done():
+		log.Error().Msgf("pending question timeout %v", pendingQ.Data)
+		//todo handle timeout
+		resp := Resp{
+			ResultCode: ErrorCodeTimeout,
+			ResultMsg:  "pending question timeout",
+		}
+		b, _ := json.Marshal(&resp)
+		_, err := common.HttpPost(callbackUri, string(b), PostCallbackTimeout)
+		if err != nil {
+			log.Error().Msgf("post callback %s body %s err %s", callbackUri, string(b), err.Error())
+		}
 		return
+
 	case s.questionCh <- pendingQ:
-		select {
-		case <-timer.C:
-			log.Warn().Msgf("pending question time out %v", q)
-			statusCode = http.StatusGatewayTimeout
-			rep.ResultMsg = "AI model handle question timeout"
-			return
-		case answer := <-pendingQ.resp:
-			if answer.Text == "" {
-				statusCode = http.StatusGatewayTimeout
-				rep.ResultMsg = "AI model handle question error"
-				return
-			}
-
-			go func() {
-				err := db.InsertSingleConversation(db.Message{
-					ConversationId: answer.ConversationId,
-					MessageId:      answer.MessageId,
-					Prompt:         q.Message,
-					Text:           answer.Text,
-					StartTime:      time.Now().Unix(),
-					Model:          answer.Model,
-				})
-				if err != nil {
-					log.Error().Msgf("insert into db error %s", err.Error())
+		for {
+			select {
+			case <-ctx.Done():
+				log.Error().Msgf("wait AI output timeout %v", pendingQ.Data)
+				resp := Resp{
+					ResultCode: ErrorCodeTimeout,
+					ResultMsg:  "wait AI output timeout",
 				}
-			}()
+				b, _ := json.Marshal(&resp)
+				_, err := common.HttpPost(callbackUri, string(b), PostCallbackTimeout)
+				if err != nil {
+					log.Error().Msgf("post callback %s body %s err %s", callbackUri, string(b), err.Error())
+				}
+				return
 
-			//update user status
-			userStatus = UserStatus{
-				MessageId:      answer.MessageId,
-				ConversationId: answer.ConversationId,
-				Url:            answer.Url,
-				LastTime:       time.Now().Unix(),
-				Model:          answer.Model,
+			case finish := <-pendingQ.Finish:
+				if finish.MessageId == "" {
+					//error happened incorrectly finish
+					log.Error().Msgf("finish messageid empty %v", pendingQ.Data)
+					resp := Resp{
+						ResultCode: ErrorCodeUnknow,
+						ResultMsg:  "finish messageId empty",
+					}
+					b, _ := json.Marshal(&resp)
+					_, err := common.HttpPost(callbackUri, string(b), PostCallbackTimeout)
+					if err != nil {
+						log.Error().Msgf("post callback %s body %s err %s", callbackUri, string(b), err.Error())
+					}
+					return
+				}
+				//graceful finish
+				log.Debug().Msgf("AI finish output question: %s answer:%s", pendingQ.Data.Message, totalAnswer)
+				callBackResp := common.CallbackResponse{
+					Text:           totalAnswer,
+					MessageId:      finish.MessageId,
+					ConversationId: finish.ConversationId,
+					Model:          finish.Model,
+					Done:           true,
+				}
+				msg, _ := json.Marshal(&callBackResp)
+				resp := Resp{
+					ResultCode: Success,
+					ResultMsg:  string(msg),
+				}
+				b, _ := json.Marshal(&resp)
+				_, err := common.HttpPost(callbackUri, string(b), PostCallbackTimeout)
+				if err != nil {
+					log.Error().Msgf("post callback %s body %s err %s", callbackUri, string(b), err.Error())
+				}
+				go func() {
+					err := db.InsertSingleConversation(db.Message{
+						ConversationId: finish.ConversationId,
+						MessageId:      finish.MessageId,
+						Prompt:         q.Message,
+						Text:           totalAnswer,
+						StartTime:      time.Now().Unix(),
+						Model:          finish.Model,
+					})
+					if err != nil {
+						log.Error().Msgf("insert into db error %s", err.Error())
+					}
+				}()
+				return
+
+			//new stream text
+			case answer := <-pendingQ.Chunk:
+				totalAnswer = answer.Text
+				log.Debug().Msgf("output chunk: %s", answer.Text)
+				callBackResp := common.CallbackResponse{
+					Text:           totalAnswer,
+					MessageId:      answer.MessageId,
+					ConversationId: answer.ConversationId,
+					Model:          answer.Model,
+					Done:           false,
+				}
+				msg, _ := json.Marshal(&callBackResp)
+				resp := Resp{
+					ResultCode: Success,
+					ResultMsg:  string(msg),
+				}
+				b, _ := json.Marshal(&resp)
+				_, err := common.HttpPost(callbackUri, string(b), PostCallbackTimeout)
+				if err != nil {
+					log.Error().Msgf("post callback %s body %s err %s", callbackUri, string(b), err.Error())
+				}
+				continue
 			}
-
-			var data []byte
-			data, _ = json.Marshal(&ProxyResponse{
-				Text:           answer.Text,
-				MessageId:      answer.MessageId,
-				ConversationId: answer.ConversationId,
-				Model:          answer.Model,
-			})
-			rep.ResultMsg = string(data)
-			rep.ResultCode = Success
-			return
 		}
 	}
 }

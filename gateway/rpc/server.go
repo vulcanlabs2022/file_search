@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	selfdriving "wzinc/ai/self-driving"
+	"wzinc/common"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
@@ -21,6 +22,7 @@ const (
 	ErrorCodeInput     = -102
 	ErrorCodeDelete    = -103
 	ErrorCodeUnmarshal = -104
+	ErrorCodeTimeout   = -105
 )
 
 const (
@@ -49,7 +51,7 @@ type Service struct {
 	password         string
 	apiClient        *zinc.APIClient
 	bsApiClient      map[string]*selfdriving.Client //modelname -> client
-	questionCh       chan (pendingQuestion)
+	questionCh       chan (common.PendingQuestion)
 	maxPendingLength int
 }
 
@@ -70,7 +72,7 @@ func InitRpcService(url, port, username, password string, bsModelConfig map[stri
 			password:         password,
 			apiClient:        apiClient,
 			bsApiClient:      make(map[string]*selfdriving.Client),
-			questionCh:       make(chan pendingQuestion),
+			questionCh:       make(chan common.PendingQuestion),
 			maxPendingLength: maxPendingLength,
 		}
 

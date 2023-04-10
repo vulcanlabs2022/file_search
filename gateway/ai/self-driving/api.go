@@ -1,9 +1,13 @@
 package selfdriving
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"io"
+	"net/http"
+	"strings"
 	"time"
 	"wzinc/common"
 	"wzinc/db"
@@ -15,6 +19,8 @@ import (
 const MaxMsgLogLength = 50
 const MaxPromtLength = 20480
 const MaxPostTimeOut = 300
+const ReadTickerTime = time.Millisecond * 100
+const JsonSuffix = "}\n"
 
 var MaxConversactionSuspend = 60 * 60 //1 hour
 
@@ -77,71 +83,117 @@ func (c *Client) buildPromt(q *common.Question) BSRequest {
 	return promt
 }
 
-func (c *Client) GetAnswer(ctx context.Context, q common.Question) (*common.QA, error) {
-	if q.FilePath == "" {
-		return c.getAnswerWorld(ctx, q)
-	}
-	return c.getAnswerFile(ctx, q)
-}
+func (c *Client) getAnswerWorld(ctx context.Context, qu common.PendingQuestion) error {
+	// prompt := c.buildPromt(&qu.Data)
+	// log.Debug().Msg("self driving model" + qu.Data.Model + "prompt:\n" + fmt.Sprintf("%v", prompt))
+	// promptData, err := json.Marshal(&prompt)
+	// if err != nil {
+	// 	log.Error().Msg(err.Error())
+	// 	return err
+	// }
 
-func (c *Client) getAnswerWorld(ctx context.Context, q common.Question) (*common.QA, error) {
-	prompt := c.buildPromt(&q)
-	log.Debug().Msg("self driving model" + q.Model + "prompt:\n" + fmt.Sprintf("%v", prompt))
-	promptData, err := json.Marshal(&prompt)
-	if err != nil {
-		log.Error().Msg(err.Error())
-		return nil, err
+	if qu.Data.ConversationId == "" {
+		qu.Data.ConversationId = uuid.NewString()
 	}
-	resp, err := common.HttpPost(c.Url, string(promptData), MaxPostTimeOut, map[string]string{})
-	if err != nil {
-		log.Error().Msg(err.Error())
-		return nil, err
-	}
-	var bsResp BSResponse
-	err = json.Unmarshal(resp, &bsResp)
-	if err != nil {
-		log.Error().Msg(err.Error())
-		return nil, err
-	}
-	if q.ConversationId == "" {
-		q.ConversationId = uuid.New().String()
-	}
-	qa := common.QA{
-		Question:       q,
-		AnswerRole:     "assitant",
-		Answer:         bsResp.Response,
-		MessageId:      uuid.NewString(),
-		ConversationId: q.ConversationId,
-		Model:          c.ModelName,
-	}
-	return &qa, nil
-}
+	qu.Data.MessageId = uuid.NewString()
 
-func (c *Client) getAnswerFile(ctx context.Context, q common.Question) (*common.QA, error) {
 	resp, err := common.HttpPostFile(c.Url, MaxPostTimeOut, map[string]string{
-		common.PostFileParamKey:  q.FilePath,
-		common.PostQueryParamKey: q.Message,
+		common.PostFileParamKey:  "",
+		common.PostQueryParamKey: qu.Data.Message,
 	})
 	if err != nil {
 		log.Error().Msg(err.Error())
-		return nil, err
+		return err
 	}
-	var bsResp BSResponse
-	err = json.Unmarshal(resp, &bsResp)
+	return c.pipeResponse(resp, qu)
+}
+
+func (c *Client) GetAnswer(ctx context.Context, qu common.PendingQuestion) (err error) {
+	if qu.Data.ConversationId == "" {
+		qu.Data.ConversationId = uuid.NewString()
+	}
+	qu.Data.MessageId = uuid.NewString()
+	defer func() {
+		qu.Finish <- common.AnswerStreamFinish{
+			Url:            c.Url,
+			MessageId:      qu.Data.MessageId,
+			ConversationId: qu.Data.ConversationId,
+			Model:          c.ModelName,
+		}
+	}()
+	form := map[string]string{
+		common.PostFileParamKey:  qu.Data.FilePath,
+		common.PostQueryParamKey: qu.Data.Message,
+	}
+	resp, err := common.HttpPostFile(c.Url, MaxPostTimeOut, form)
 	if err != nil {
-		log.Error().Msg(err.Error())
-		return nil, err
+		log.Error().Msgf("post url %s formdata %v err %s", c.Url, form, err.Error())
+		return err
 	}
-	if q.ConversationId == "" {
-		q.ConversationId = uuid.New().String()
+	err = c.pipeResponse(resp, qu)
+	return err
+}
+
+func (c *Client) pipeResponse(resp *http.Response, qu common.PendingQuestion) error {
+	defer resp.Body.Close()
+	reader := bufio.NewReaderSize(resp.Body, 40960)
+	tic := time.NewTicker(ReadTickerTime)
+	wordsJson := ""
+	for {
+		select {
+		case <-qu.Ctx.Done():
+			return nil
+		case <-tic.C:
+			words, err := reader.ReadString('\n')
+			if err != nil {
+				if err == io.EOF {
+					return nil
+				} else {
+					log.Error().Msgf("read string from body err %s", err.Error())
+					return err
+				}
+			}
+			if words == "" {
+				continue
+			}
+			log.Debug().Msgf("new words:%s", words)
+			wordsJson = wordsJson + words
+			if !strings.HasSuffix(wordsJson, JsonSuffix) {
+				log.Debug().Msg("no suffix read more")
+				continue
+			}
+			var bsResp BSResponse
+			err = json.Unmarshal([]byte(wordsJson), &bsResp)
+			if err != nil {
+				log.Error().Msgf("pipe response unmarshal json err %s %s", wordsJson, err.Error())
+				continue
+			}
+			wordsJson = ""
+			log.Debug().Msgf("new chunk: %s", bsResp.Response)
+			qu.Chunk <- common.RelayResponse{
+				Url:            c.Url,
+				Text:           bsResp.Response,
+				MessageId:      qu.Data.MessageId,
+				ConversationId: qu.Data.ConversationId,
+				Model:          c.ModelName,
+			}
+		}
 	}
-	qa := common.QA{
-		Question:       q,
-		AnswerRole:     "assitant",
-		Answer:         bsResp.Response,
-		MessageId:      uuid.NewString(),
-		ConversationId: q.ConversationId,
-		Model:          c.ModelName,
+}
+
+func splitJson(data []byte, atEOF bool) (int, []byte, error) {
+	delim := []byte(JsonSuffix)
+	if atEOF && len(data) == 0 {
+		return 0, nil, nil
 	}
-	return &qa, nil
+
+	if i := bytes.Index(data, delim); i >= 0 {
+		return i + len(delim), append(data[:i], byte('}')), nil
+	}
+
+	if atEOF {
+		return len(data), data, nil
+	}
+
+	return 0, nil, nil
 }
