@@ -222,6 +222,8 @@ Content-Type:multipart/form-data
 
 AI聊天的过程为用户提问，AI回复，轮流进行。AI会基于之前的聊天记录和新问题做出回复。使用conversactionId标识聊天，使用messageId标识一次回复。
 
+服务端接受请求后检查参数无误，立刻回复ok。随后多次请求回调接口，推送AI回答消息，消息以递增的形式发送。
+
 #### 请求格式
 post请求使用表单格式
 
@@ -229,22 +231,100 @@ Content-Type:multipart/form-data
 
 #### 请求字段：
 
-| 请求字段       | 类型   | 备注                                         |
-| -------------- | ------ | -------------------------------------------- |
-| message        | string | 提问内容                                     |
-| conversationId | string | 继续一段聊天则填入聊天ID，开始新的聊天则为空 |
-| path           | string | 基于该路径的文件回答，为空则仅基于模型知识   |
+| 请求字段       | 类型            | 备注                                         |
+| -------------- | --------------- | -------------------------------------------- |
+| message        | string          | 提问内容                                     |
+| conversationId | string （可选） | 继续一段聊天则填入聊天ID，开始新的聊天则为空 |
+| path           | string （可选） | 基于该路径的文件回答，为空则仅基于模型知识   |
+| callback       | string          | 回调接口URI                                  |
 
 #### 返回：
 
 ```
 {
    code: 0
+   data : "ok"
+}
+```
+
+#### Callback接口
+
+请求格式：Post
+Content-Type: application/json
+
+请求示例：{"code":0, "data":"XXX"}
+
+code为0则成功，data为返回信息。小于0为错误，data为错误信息。出现错误后，回答结束不会再调用回调接口。
+
+
+| data对象字段   | 类型   | 备注                                             |
+| -------------- | ------ | ------------------------------------------------ |
+| text           | string | 回复内容                                         |
+| messageId      | string | 回复ID。同一问题的多次回调的messageID相同。      |
+| conversationId | string | 聊天ID。同一问题的多次回调的conversationId相同。 |
+| model          | string | 模型名                                           |
+| done           | bool   | true为回复结束                                   |
+
+text字段的回复内容为递增形式。done字段为true后回复结束，不会再回调。
+
+例如一个问题的连续回调：
+```
+{
+   code: 0
    data : {
-      text:"hello",
-      messageId:"e3665eb4-68b2-4f3e-bbe7-9f34180cd0db",
+      text:"Elon",
+      messageId":"e3665eb4-68b2-4f3e-bbe7-9f34180cd0db",
       conversationId:"3cdaa5d8-1801-4e4f-a672-aaa01da33d62",
-      model:"self-driving"
+      model:"chat_model",
+      done: false,
+   }
+}
+```
+```
+{
+   code: 0
+   data : {
+      text:"Elon M",
+      messageId":"e3665eb4-68b2-4f3e-bbe7-9f34180cd0db",
+      conversationId:"3cdaa5d8-1801-4e4f-a672-aaa01da33d62",
+      model:"chat_model",
+      done: false,
+   }
+}
+```
+```
+{
+   code: 0
+   data : {
+      text:"Elon Mask",
+      messageId":"e3665eb4-68b2-4f3e-bbe7-9f34180cd0db",
+      conversationId:"3cdaa5d8-1801-4e4f-a672-aaa01da33d62",
+      model:"chat_model",
+      done: false,
+   }
+}
+```
+```
+{
+   code: 0
+   data : {
+      text:"Elon Mask is the",
+      messageId":"e3665eb4-68b2-4f3e-bbe7-9f34180cd0db",
+      conversationId:"3cdaa5d8-1801-4e4f-a672-aaa01da33d62",
+      model:"chat_model",
+      done: false,
+   }
+}
+```
+```
+{
+   code: 0
+   data : {
+      text:"Elon Mask is the CEO.",
+      messageId":"e3665eb4-68b2-4f3e-bbe7-9f34180cd0db",
+      conversationId:"3cdaa5d8-1801-4e4f-a672-aaa01da33d62",
+      model:"chat_model",
+      done: true,
    }
 }
 ```
