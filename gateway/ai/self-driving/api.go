@@ -5,13 +5,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 	"wzinc/common"
 	"wzinc/db"
+	"wzinc/parser"
+
+	"github.com/rs/zerolog/log"
 )
 
 const MaxMsgLogLength = 50
@@ -25,9 +28,9 @@ const FakeAnswer = "Elon Musk is an American entrepreneur, engineer and inventor
 var MaxConversactionSuspend = 60 * 60 //1 hour
 
 type BSRequest struct {
-	Content string     `json:"content"`
+	Query   string     `json:"query"`
 	History [][]string `json:"history"`
-	Model   string     `json:"model,omitempty"`
+	Text    string     `json:"text"`
 }
 
 type BSResponse struct {
@@ -51,11 +54,11 @@ func NewClient(url, modelName string, ctx context.Context) *Client {
 	return c
 }
 
-func (c *Client) buildPromt(q *common.Question) BSRequest {
+func (c *Client) buildPromt(q *common.Question) (*BSRequest, error) {
 	maxLength := MaxPromtLength
 	promtHistoryLen := 0
 	promt := BSRequest{
-		Content: q.Message,
+		Query:   q.Message,
 		History: [][]string{},
 	}
 	conversationFrom := time.Now().Unix() - int64(MaxConversactionSuspend)
@@ -79,11 +82,28 @@ func (c *Client) buildPromt(q *common.Question) BSRequest {
 			}
 		}
 	}
-	return promt
+
+	//parse doc
+	if q.FilePath != "" {
+		f, err := os.Open(q.FilePath)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		fileStr, err := parser.ParseDoc(f, q.FilePath)
+		if err != nil {
+			return nil, err
+		}
+		promt.Text = fileStr
+	}
+	return &promt, nil
 }
 
 func (c *Client) GetAnswerFake(ctx context.Context, qu common.PendingQuestion) (err error) {
-	prompt := c.buildPromt(&qu.Data)
+	prompt, err := c.buildPromt(&qu.Data)
+	if err != nil {
+		return err
+	}
 	history, err := json.Marshal(prompt.History)
 	if err != nil {
 		return err
@@ -115,28 +135,36 @@ func (c *Client) GetAnswerFake(ctx context.Context, qu common.PendingQuestion) (
 }
 
 func (c *Client) GetAnswer(ctx context.Context, qu common.PendingQuestion) (err error) {
-	prompt := c.buildPromt(&qu.Data)
-	history, err := json.Marshal(prompt.History)
-	if err != nil {
-		return err
-	}
-	log.Debug().Msgf("history:%s", string(history))
 	defer func() {
-		qu.Finish <- common.AnswerStreamFinish{
+		finish := common.AnswerStreamFinish{
 			Url:            c.Url,
 			MessageId:      qu.Data.MessageId,
 			ConversationId: qu.Data.ConversationId,
 			Model:          c.ModelName,
 		}
+		if err != nil {
+			finish.ErrorMsg = err.Error()
+		}
+		qu.Finish <- finish
 	}()
-	form := map[string]string{
-		common.PostFileParamKey:    qu.Data.FilePath,
-		common.PostQueryParamKey:   qu.Data.Message,
-		common.PostHistoryParamKey: string(history),
-	}
-	resp, err := common.HttpPostFile(c.Url, MaxPostTimeOut, form)
+	prompt, err := c.buildPromt(&qu.Data)
 	if err != nil {
-		log.Error().Msgf("post url %s formdata %v err %s", c.Url, form, err.Error())
+		return err
+	}
+	history, err := json.Marshal(prompt.History)
+	if err != nil {
+		return err
+	}
+	log.Debug().Msgf("history:%s", string(history))
+
+	body, err := json.Marshal(prompt)
+	if err != nil {
+		return err
+	}
+	log.Debug().Msgf("request body %s", string(body))
+	resp, err := common.HttpPost(c.Url, string(body), MaxPostTimeOut)
+	if err != nil {
+		log.Error().Msgf("post url %s body %v err %s", c.Url, string(body), err.Error())
 		return err
 	}
 	err = c.pipeResponse(resp, qu)

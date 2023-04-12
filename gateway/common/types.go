@@ -33,6 +33,7 @@ type AnswerStreamFinish struct {
 	MessageId      string `json:"messageId"`
 	ConversationId string `json:"conversationId"`
 	Model          string `json:"model"`
+	ErrorMsg       string `json:"err"`
 }
 
 type RelayResponse struct {

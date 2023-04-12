@@ -51,14 +51,13 @@ func (s *Service) checkOneQuestion(qu common.PendingQuestion) {
 	if client, ok := s.bsApiClient[qu.Data.Model]; ok {
 		ctx, cancel := context.WithCancel(qu.Ctx)
 		defer cancel()
-		err := client.GetAnswerFake(ctx, qu)
+		err := client.GetAnswer(ctx, qu)
 		if err != nil {
 			log.Error().Msgf("handle bs question error %s", err.Error())
 		}
 		return
 	}
 	log.Error().Msgf("model not exist name%s", qu.Data.Model)
-	return
 }
 
 func (s *Service) HandleQuestion(c *gin.Context) {
@@ -167,6 +166,20 @@ func (s *Service) questionCallback(ctx context.Context, q common.Question, callb
 				return
 
 			case finish := <-pendingQ.Finish:
+				if finish.ErrorMsg != "" {
+					//error happened incorrectly finish
+					log.Error().Msgf("finish with error %v %s", pendingQ.Data, finish.ErrorMsg)
+					resp := Resp{
+						ResultCode: ErrorCodeUnknow,
+						ResultMsg:  finish.ErrorMsg,
+					}
+					b, _ := json.Marshal(&resp)
+					_, err := common.HttpPost(callbackUri, string(b), PostCallbackTimeout)
+					if err != nil {
+						log.Error().Msgf("post callback %s body %s err %s", callbackUri, string(b), err.Error())
+					}
+					return
+				}
 				if finish.MessageId == "" {
 					//error happened incorrectly finish
 					log.Error().Msgf("finish messageid empty %v", pendingQ.Data)
@@ -217,6 +230,9 @@ func (s *Service) questionCallback(ctx context.Context, q common.Question, callb
 
 			//new stream text
 			case answer := <-pendingQ.Chunk:
+				if totalAnswer == answer.Text {
+					continue
+				}
 				totalAnswer = answer.Text
 				log.Debug().Msgf("output chunk: %s", answer.Text)
 				callBackResp := common.CallbackResponse{
