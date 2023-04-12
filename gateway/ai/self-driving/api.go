@@ -5,22 +5,22 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
 	"strings"
 	"time"
 	"wzinc/common"
 	"wzinc/db"
-
-	"github.com/google/uuid"
-	"github.com/rs/zerolog/log"
 )
 
 const MaxMsgLogLength = 50
 const MaxPromtLength = 20480
 const MaxPostTimeOut = 300
-const ReadTickerTime = time.Millisecond * 100
+const ReadTickerTime = time.Millisecond * 200
 const JsonSuffix = "}\n"
+
+const FakeAnswer = "Elon Musk is an American entrepreneur, engineer and inventor who has founded several successful companies including SpaceX, Tesla Motors and SolarCity. He is also known for his work in developing electric cars and solar energy systems."
 
 var MaxConversactionSuspend = 60 * 60 //1 hour
 
@@ -82,29 +82,36 @@ func (c *Client) buildPromt(q *common.Question) BSRequest {
 	return promt
 }
 
-func (c *Client) getAnswerWorld(ctx context.Context, qu common.PendingQuestion) error {
-	// prompt := c.buildPromt(&qu.Data)
-	// log.Debug().Msg("self driving model" + qu.Data.Model + "prompt:\n" + fmt.Sprintf("%v", prompt))
-	// promptData, err := json.Marshal(&prompt)
-	// if err != nil {
-	// 	log.Error().Msg(err.Error())
-	// 	return err
-	// }
-
-	if qu.Data.ConversationId == "" {
-		qu.Data.ConversationId = uuid.NewString()
-	}
-	qu.Data.MessageId = uuid.NewString()
-
-	resp, err := common.HttpPostFile(c.Url, MaxPostTimeOut, map[string]string{
-		common.PostFileParamKey:  "",
-		common.PostQueryParamKey: qu.Data.Message,
-	})
+func (c *Client) GetAnswerFake(ctx context.Context, qu common.PendingQuestion) (err error) {
+	prompt := c.buildPromt(&qu.Data)
+	history, err := json.Marshal(prompt.History)
 	if err != nil {
-		log.Error().Msg(err.Error())
 		return err
 	}
-	return c.pipeResponse(resp, qu)
+	log.Debug().Msgf("history:%s", string(history))
+	defer func() {
+		qu.Finish <- common.AnswerStreamFinish{
+			Url:            c.Url,
+			MessageId:      qu.Data.MessageId,
+			ConversationId: qu.Data.ConversationId,
+			Model:          c.ModelName,
+		}
+	}()
+	totalAnwer := ""
+	fakelist := strings.Split(FakeAnswer, " ")
+	time.Sleep(time.Second * 10)
+	for _, word := range fakelist {
+		time.Sleep(ReadTickerTime)
+		totalAnwer = totalAnwer + " " + word
+		qu.Chunk <- common.RelayResponse{
+			Url:            c.Url,
+			Text:           totalAnwer,
+			MessageId:      qu.Data.MessageId,
+			ConversationId: qu.Data.ConversationId,
+			Model:          c.ModelName,
+		}
+	}
+	return err
 }
 
 func (c *Client) GetAnswer(ctx context.Context, qu common.PendingQuestion) (err error) {

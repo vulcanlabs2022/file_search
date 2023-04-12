@@ -51,7 +51,7 @@ func (s *Service) checkOneQuestion(qu common.PendingQuestion) {
 	if client, ok := s.bsApiClient[qu.Data.Model]; ok {
 		ctx, cancel := context.WithCancel(qu.Ctx)
 		defer cancel()
-		err := client.GetAnswer(ctx, qu)
+		err := client.GetAnswerFake(ctx, qu)
 		if err != nil {
 			log.Error().Msgf("handle bs question error %s", err.Error())
 		}
