@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -22,6 +23,8 @@ const MaxPromtLength = 20480
 const MaxPostTimeOut = 300
 const ReadTickerTime = time.Millisecond * 200
 const JsonSuffix = "}\n"
+const MaxTry = 1
+const RetryWaitTime = time.Second
 
 const FakeAnswer = "Elon Musk is an American entrepreneur, engineer and inventor who has founded several successful companies including SpaceX, Tesla Motors and SolarCity. He is also known for his work in developing electric cars and solar energy systems."
 
@@ -162,12 +165,27 @@ func (c *Client) GetAnswer(ctx context.Context, qu common.PendingQuestion) (err 
 		return err
 	}
 	log.Debug().Msgf("request body %s", string(body))
-	resp, err := common.HttpPost(c.Url, string(body), MaxPostTimeOut)
-	if err != nil {
-		log.Error().Msgf("post url %s body %v err %s", c.Url, string(body), err.Error())
+	tryTimes := 0
+	tryPost := func() error {
+		resp, err := common.HttpPost(c.Url, string(body), MaxPostTimeOut)
+		if err != nil {
+			log.Error().Msgf("post url %s body %v err %s", c.Url, string(body), err.Error())
+			return err
+		}
+		err = c.pipeResponse(resp, qu)
 		return err
 	}
-	err = c.pipeResponse(resp, qu)
+
+	for tryTimes < MaxTry {
+		tryTimes++
+		err = tryPost()
+		if err != nil {
+			time.Sleep(RetryWaitTime * time.Duration(tryTimes))
+			continue
+		} else {
+			break
+		}
+	}
 	return err
 }
 
@@ -184,7 +202,11 @@ func (c *Client) pipeResponse(resp *http.Response, qu common.PendingQuestion) er
 			words, err := reader.ReadString('\n')
 			if err != nil {
 				if err == io.EOF {
-					return nil
+					if wordsJson != "" {
+						return errors.New("unexpected connection closed")
+					} else {
+						return nil
+					}
 				} else {
 					log.Error().Msgf("read string from body err %s", err.Error())
 					return err
