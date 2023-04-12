@@ -243,7 +243,10 @@ Content-Type:multipart/form-data
 ```
 {
    code: 0
-   data : "ok"
+   data : {
+      conversationId: "3cdaa5d8-1801-4e4f-a672-aaa01da33d62",
+      messageId: "e3665eb4-68b2-4f3e-bbe7-9f34180cd0db",
+   }
 }
 ```
 
