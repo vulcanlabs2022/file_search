@@ -11,6 +11,7 @@ import (
 	"wzinc/parser"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
@@ -19,6 +20,12 @@ const WaitForAIAnswer = time.Minute * 5
 const ChatModelName = "chat_model"
 const FileModelName = "file_model"
 const PostCallbackTimeout = 60
+
+type FirstResponse struct {
+	ConversationId string `json:"conversationId"`
+	MessageId      string `json:"messageId"`
+	CallbackUri    string `json:"callback"`
+}
 
 func (s *Service) StartChatService(ctx context.Context) {
 	//max concurrent questions
@@ -95,9 +102,13 @@ func (s *Service) HandleQuestion(c *gin.Context) {
 
 	callbackUri := c.PostForm("callback")
 
+	if conv_id == "" {
+		conv_id = uuid.NewString()
+	}
+
 	q := common.Question{
 		Message:        msg,
-		MessageId:      "",
+		MessageId:      uuid.NewString(),
 		ConversationId: conv_id,
 		Model:          modelName,
 		FilePath:       filePath,
@@ -105,7 +116,13 @@ func (s *Service) HandleQuestion(c *gin.Context) {
 	ctx, _ := context.WithTimeout(context.Background(), WaitForAIAnswer)
 	go s.questionCallback(ctx, q, callbackUri)
 	rep.ResultCode = Success
-	rep.ResultMsg = "ok"
+	res := FirstResponse{
+		ConversationId: q.ConversationId,
+		MessageId:      q.MessageId,
+		CallbackUri:    callbackUri,
+	}
+	b, _ := json.Marshal(&res)
+	rep.ResultMsg = string(b)
 }
 
 func (s *Service) questionCallback(ctx context.Context, q common.Question, callbackUri string) {

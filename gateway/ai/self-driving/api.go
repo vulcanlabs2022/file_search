@@ -57,7 +57,6 @@ func (c *Client) buildPromt(q *common.Question) BSRequest {
 	promt := BSRequest{
 		Content: q.Message,
 		History: [][]string{},
-		//TODO: add model name
 	}
 	conversationFrom := time.Now().Unix() - int64(MaxConversactionSuspend)
 	msgLog, err := db.GetResentConversation(q.ConversationId, conversationFrom)
@@ -109,10 +108,12 @@ func (c *Client) getAnswerWorld(ctx context.Context, qu common.PendingQuestion) 
 }
 
 func (c *Client) GetAnswer(ctx context.Context, qu common.PendingQuestion) (err error) {
-	if qu.Data.ConversationId == "" {
-		qu.Data.ConversationId = uuid.NewString()
+	prompt := c.buildPromt(&qu.Data)
+	history, err := json.Marshal(prompt.History)
+	if err != nil {
+		return err
 	}
-	qu.Data.MessageId = uuid.NewString()
+	log.Debug().Msgf("history:%s", string(history))
 	defer func() {
 		qu.Finish <- common.AnswerStreamFinish{
 			Url:            c.Url,
@@ -122,8 +123,9 @@ func (c *Client) GetAnswer(ctx context.Context, qu common.PendingQuestion) (err 
 		}
 	}()
 	form := map[string]string{
-		common.PostFileParamKey:  qu.Data.FilePath,
-		common.PostQueryParamKey: qu.Data.Message,
+		common.PostFileParamKey:    qu.Data.FilePath,
+		common.PostQueryParamKey:   qu.Data.Message,
+		common.PostHistoryParamKey: string(history),
 	}
 	resp, err := common.HttpPostFile(c.Url, MaxPostTimeOut, form)
 	if err != nil {

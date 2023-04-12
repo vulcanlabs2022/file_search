@@ -30,6 +30,7 @@ func TestGetAnswerFile(t *testing.T) {
 			s, err := reader.ReadString('\n')
 			if err != nil {
 				if err == io.EOF {
+					fmt.Println(err)
 					return
 				}
 				panic(err)

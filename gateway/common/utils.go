@@ -14,6 +14,7 @@ import (
 
 const PostFileParamKey = "file"
 const PostQueryParamKey = "query"
+const PostHistoryParamKey = "history"
 
 func HttpPostFile(requrl string, timeoutS int, params map[string]string) (*http.Response, error) {
 	var requestBody bytes.Buffer
