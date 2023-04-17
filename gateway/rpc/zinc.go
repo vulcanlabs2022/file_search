@@ -142,12 +142,16 @@ func (s *Service) ZincRawQuery(indexName, term string, size int32) (*zinc.MetaSe
 	subQueryContent.SetMatch(map[string]zinc.MetaMatchQuery{
 		"content": matchQuery,
 	})
-	subQueryName := *zinc.NewMetaQuery()
-	subQueryName.SetMatch(map[string]zinc.MetaMatchQuery{
+	subQueryFormatName := *zinc.NewMetaQuery()
+	subQueryFormatName.SetMatch(map[string]zinc.MetaMatchQuery{
 		"format_name": matchQuery,
 	})
+	subQueryFileName := *zinc.NewMetaQuery()
+	subQueryFileName.SetMatch(map[string]zinc.MetaMatchQuery{
+		"name": matchQuery,
+	})
 	boolQuery := *zinc.NewMetaBoolQuery()
-	boolQuery.SetShould([]zinc.MetaQuery{subQueryContent, subQueryName})
+	boolQuery.SetShould([]zinc.MetaQuery{subQueryContent, subQueryFormatName, subQueryFileName})
 	queryQuery := *zinc.NewMetaQuery()
 	queryQuery.SetBool(boolQuery)
 	query.SetQuery(queryQuery)
@@ -303,7 +307,7 @@ func (s *Service) setupIndex() error {
 	return nil
 }
 
-//add highlightable filed "content" in index map setting
+// add highlightable filed "content" in index map setting
 func (s *Service) setIndexMapping(indexName string) error {
 	ctx := context.WithValue(context.Background(), zinc.ContextBasicAuth, zinc.BasicAuth{
 		UserName: s.username,
