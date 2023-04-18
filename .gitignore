@@ -45,3 +45,5 @@ data/
 docker-compose.yml
 .vscode/
 .VSCodeCounter/
+
+search/

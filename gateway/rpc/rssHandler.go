@@ -70,8 +70,10 @@ func (s *Service) HandleRssInput(c *gin.Context) {
 		},
 		Content: "",
 	}
+	log.Debug().Msgf("request body: %s",string(body))
 	err = json.Unmarshal(body, &rssInput)
 	if err != nil {
+		log.Error().Msgf("json unmarshal request body error %s", err.Error())
 		rep.ResultMsg = err.Error()
 		c.JSON(http.StatusBadRequest, rep)
 		return
