@@ -1,6 +1,7 @@
 package inotify
 
 import (
+	"bytetrade.io/web3os/fs-lib/jfsnotify"
 	"fmt"
 	"io/fs"
 	"math"
@@ -11,19 +12,18 @@ import (
 	"time"
 	"wzinc/parser"
 	"wzinc/rpc"
-
-	"github.com/fsnotify/fsnotify"
+	// "github.com/fsnotify/fsnotify"
 	"github.com/rs/zerolog/log"
 )
 
-var watcher *fsnotify.Watcher
+var watcher *jfsnotify.Watcher
 var PathRoot *node
 
 func WatchPath(path string) {
 	PathRoot = new(node)
 	// Create a new watcher.
 	var err error
-	watcher, err = fsnotify.NewWatcher()
+	watcher, err = jfsnotify.NewWatcher("myWatcher")
 	if err != nil {
 		panic(err)
 	}
@@ -58,7 +58,7 @@ func WatchPath(path string) {
 	printTime("ready; press ^C to exit")
 }
 
-func dedupLoop(w *fsnotify.Watcher) {
+func dedupLoop(w *jfsnotify.Watcher) {
 	var (
 		// Wait 100ms for new events; each new event resets the timer.
 		waitFor = 1000 * time.Millisecond
@@ -68,7 +68,7 @@ func dedupLoop(w *fsnotify.Watcher) {
 		timers = make(map[string]*time.Timer)
 
 		// Callback we run.
-		printEvent = func(e fsnotify.Event) {
+		printEvent = func(e jfsnotify.Event) {
 			printTime(e.String())
 
 			// Don't need to remove the timer if you don't have a lot of files.
@@ -89,15 +89,10 @@ func dedupLoop(w *fsnotify.Watcher) {
 		// Read from Events.
 		case e, ok := <-w.Events:
 			if !ok { // Channel was closed (i.e. Watcher.Close() was called).
+				log.Warn().Msg("watcher event channel closed")
 				return
 			}
-
-			// We just want to watch for file creation, so ignore everything
-			// outside of Create and Write.
-			// if !e.Has(fsnotify.Create) && !e.Has(fsnotify.Write) && e.Has(fsnotify.Rename) && e.Has(fsnotify.Remove) {
-			// 	continue
-			// }
-
+			log.Debug().Msgf("pending event %v", e)
 			// Get timer.
 			mu.Lock()
 			t, ok := timers[e.Name]
@@ -125,8 +120,8 @@ func dedupLoop(w *fsnotify.Watcher) {
 	}
 }
 
-func handleEvent(e fsnotify.Event) error {
-	if e.Has(fsnotify.Remove) || e.Has(fsnotify.Rename) {
+func handleEvent(e jfsnotify.Event) error {
+	if e.Has(jfsnotify.Remove) || e.Has(jfsnotify.Rename) {
 		deletedList := PathRoot.deletePath(e.Name)
 		for _, filePath := range deletedList {
 			res, err := rpc.RpcServer.ZincQueryByPath(rpc.FileIndex, filePath)
@@ -163,7 +158,7 @@ func handleEvent(e fsnotify.Event) error {
 		return nil
 	}
 
-	if e.Has(fsnotify.Create) {
+	if e.Has(jfsnotify.Create) {
 		err := filepath.Walk(e.Name, func(path string, info fs.FileInfo, err error) error {
 			if err != nil {
 				return err
@@ -190,7 +185,7 @@ func handleEvent(e fsnotify.Event) error {
 		return nil
 	}
 
-	if e.Has(fsnotify.Write) || e.Has(fsnotify.Chmod) {
+	if e.Has(jfsnotify.Write) || e.Has(jfsnotify.Chmod) {
 		return updateOrInputDoc(e.Name)
 	}
 	return nil

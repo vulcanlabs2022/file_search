@@ -27,6 +27,7 @@ RUN adduser \
 
 WORKDIR $GOPATH/src/gateway
 COPY ./gateway $GOPATH/src/gateway/
+COPY ./fs-lib-public $GOPATH/src/fs-lib-public/
 RUN go mod tidy
 RUN go build -o wzinc
 ############################
