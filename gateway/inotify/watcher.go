@@ -1,9 +1,10 @@
 package inotify
 
 import (
-	"bytetrade.io/web3os/fs-lib/jfsnotify"
+	"bytes"
 	"fmt"
 	"io/fs"
+	"io/ioutil"
 	"math"
 	"os"
 	"path"
@@ -12,6 +13,9 @@ import (
 	"time"
 	"wzinc/parser"
 	"wzinc/rpc"
+
+	"bytetrade.io/web3os/fs-lib/jfsnotify"
+
 	// "github.com/fsnotify/fsnotify"
 	"github.com/rs/zerolog/log"
 )
@@ -238,8 +242,10 @@ func updateOrInputDoc(filepath string) error {
 		if err != nil {
 			return err
 		}
-		defer f.Close()
-		content, err = parser.ParseDoc(f, filepath)
+		data, _ := ioutil.ReadAll(f)
+		f.Close()
+		r := bytes.NewReader(data)
+		content, err = parser.ParseDoc(r, filepath)
 		if err != nil {
 			return err
 		}

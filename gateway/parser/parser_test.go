@@ -1,7 +1,9 @@
 package parser
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -9,12 +11,14 @@ import (
 )
 
 func TestParseDoc(t *testing.T) {
-	file, err := os.Open("../testfile/test.docx")
+	f, err := os.Open("/Users/houmingyu/Documents/web5/filesearch/testfile/test.docx")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer file.Close()
-	s, err := ParseDoc(file, "test.docx")
+	data, _ := ioutil.ReadAll(f)
+	f.Close()
+	r := bytes.NewReader(data)
+	s, err := ParseDoc(r, "test.docx")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,12 +26,14 @@ func TestParseDoc(t *testing.T) {
 }
 
 func TestParsePDF(t *testing.T) {
-	file, err := os.Open("../testfile/test.pdf")
+	f, err := os.Open("/Users/houmingyu/Documents/web5/filesearch/testfile/test.pdf")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer file.Close()
-	s, err := ParseDoc(file, "test.pdf")
+	data, _ := ioutil.ReadAll(f)
+	f.Close()
+	r := bytes.NewReader(data)
+	s, err := ParseDoc(r, "test.pdf")
 	if err != nil {
 		t.Fatal(err)
 	}

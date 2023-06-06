@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -92,8 +93,10 @@ func (c *Client) buildPromt(q *common.Question) (*BSRequest, error) {
 		if err != nil {
 			return nil, err
 		}
-		defer f.Close()
-		fileStr, err := parser.ParseDoc(f, q.FilePath)
+		data, _ := ioutil.ReadAll(f)
+		f.Close()
+		r := bytes.NewReader(data)
+		fileStr, err := parser.ParseDoc(r, q.FilePath)
 		if err != nil {
 			return nil, err
 		}

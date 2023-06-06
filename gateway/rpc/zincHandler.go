@@ -1,8 +1,10 @@
 package rpc
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -51,8 +53,10 @@ func (s *Service) HandleFileInput(c *gin.Context) {
 			return
 		}
 		filename = fileHeader.Filename
-		defer file.Close()
-		content, err = parser.ParseDoc(file, filename)
+		data, _ := ioutil.ReadAll(file)
+		file.Close()
+		r := bytes.NewReader(data)
+		content, err = parser.ParseDoc(r, filename)
 		if err != nil {
 			log.Error().Msgf("parse file error %v", err)
 			rep.ResultMsg = err.Error()
