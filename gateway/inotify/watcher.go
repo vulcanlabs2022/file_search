@@ -13,6 +13,7 @@ import (
 	"wzinc/rpc"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
@@ -128,7 +129,27 @@ func dedupLoop(w *fsnotify.Watcher) {
 func handleEvent(e fsnotify.Event) error {
 	if e.Has(fsnotify.Remove) || e.Has(fsnotify.Rename) {
 		deletedList := PathRoot.deletePath(e.Name)
+		log.Info().Msgf("push fs task delete %s", e.Name)
+		VectorCli.fsTask <- VectorDBTask{
+			Filename:  path.Base(e.Name),
+			Filepath:  e.Name,
+			IsInsert:  false,
+			Action:    DeleteAction,
+			TaskId:    uuid.NewString(),
+			StartTime: time.Now().Unix(),
+			FileId:    fileId(e.Name),
+		}
 		for _, filePath := range deletedList {
+			log.Info().Msgf("push fs task delete %s", filePath)
+			VectorCli.fsTask <- VectorDBTask{
+				Filename:  path.Base(filePath),
+				Filepath:  filePath,
+				IsInsert:  false,
+				Action:    DeleteAction,
+				TaskId:    uuid.NewString(),
+				StartTime: time.Now().Unix(),
+				FileId:    fileId(filePath),
+			}
 			res, err := rpc.RpcServer.ZincQueryByPath(rpc.FileIndex, filePath)
 			if err != nil {
 				continue
@@ -164,20 +185,30 @@ func handleEvent(e fsnotify.Event) error {
 	}
 
 	if e.Has(fsnotify.Create) {
-		err := filepath.Walk(e.Name, func(path string, info fs.FileInfo, err error) error {
+		err := filepath.Walk(e.Name, func(childPath string, info fs.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 			if info.IsDir() {
 				//add dir to watch list
-				err = watcher.Add(path)
+				err = watcher.Add(childPath)
 				if err != nil {
 					log.Error().Msgf("watcher add error:%v", err)
 				}
 			} else {
-				PathRoot.addFile(path)
+				log.Info().Msgf("push fs task insert %s", childPath)
+				VectorCli.fsTask <- VectorDBTask{
+					Filename:  path.Base(childPath),
+					Filepath:  childPath,
+					IsInsert:  true,
+					Action:    AddAction,
+					TaskId:    uuid.NewString(),
+					StartTime: time.Now().Unix(),
+					FileId:    fileId(childPath),
+				}
+				PathRoot.addFile(childPath)
 				//input zinc file
-				err = updateOrInputDoc(path)
+				err = updateOrInputDoc(childPath)
 				if err != nil {
 					log.Error().Msgf("update or input doc error %v", err)
 				}
@@ -191,6 +222,16 @@ func handleEvent(e fsnotify.Event) error {
 	}
 
 	if e.Has(fsnotify.Write) || e.Has(fsnotify.Chmod) {
+		log.Info().Msgf("push fs task insert %s", e.Name)
+		VectorCli.fsTask <- VectorDBTask{
+			Filename:  path.Base(e.Name),
+			Filepath:  e.Name,
+			IsInsert:  true,
+			Action:    UpdataAction,
+			TaskId:    uuid.NewString(),
+			StartTime: time.Now().Unix(),
+			FileId:    fileId(e.Name),
+		}
 		return updateOrInputDoc(e.Name)
 	}
 	return nil
