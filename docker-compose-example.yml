@@ -41,6 +41,7 @@ services:
       - ZINC_URI=http://zincsearch:4080
       - CHAT_MODEL_URI=http://localhost/ai/chat #AI世界知识模型URI
       - FILE_MODEL_URI=http://localhost/ai/file #AI文档理解模型URI
+      - INDEXER_MODEL_URI=indexer_db_url
       - POD_NAME=your_pod
       - NAMESPACE=your_namespace
       - CONTAINER_NAME=your_container_in_pod
