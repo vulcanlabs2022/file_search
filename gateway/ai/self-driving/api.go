@@ -34,6 +34,7 @@ type BSRequest struct {
 	Query   string     `json:"query"`
 	History [][]string `json:"history"`
 	Text    string     `json:"text"`
+	Type    string     `json:"type"` //basic, single_doc, full_doc
 }
 
 type BSResponse struct {
@@ -63,6 +64,7 @@ func (c *Client) buildPromt(q *common.Question) (*BSRequest, error) {
 	promt := BSRequest{
 		Query:   q.Message,
 		History: [][]string{},
+		Type:    q.Type,
 	}
 	conversationFrom := time.Now().Unix() - int64(MaxConversactionSuspend)
 	msgLog, err := db.GetResentConversation(q.ConversationId, conversationFrom)

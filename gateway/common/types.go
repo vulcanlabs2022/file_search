@@ -10,6 +10,7 @@ type Question struct {
 	ConversationId string `json:"conversationId"`
 	Model          string `json:"model"`
 	FilePath       string `json:"filepath"`
+	Type           string `json:"type"`
 }
 
 type QA struct {
