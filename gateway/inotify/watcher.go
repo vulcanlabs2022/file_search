@@ -195,6 +195,7 @@ func handleEvent(e jfsnotify.Event) error {
 					log.Error().Msgf("watcher add error:%v", err)
 				}
 			} else {
+				PathRoot.addFile(childPath)
 				log.Info().Msgf("push fs task insert %s", childPath)
 				VectorCli.fsTask <- VectorDBTask{
 					Filename:  path.Base(childPath),
