@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"sync"
@@ -138,9 +139,17 @@ func (c *Service) loadRoutes(ctx context.Context) error {
 	RpcEngine.POST("/api/query", c.HandleQuery)
 
 	RpcEngine.POST("/api/ai/question", c.HandleQuestion)
+	RpcEngine.POST("/api/ai/fake/callback", func(c *gin.Context) {
+		b, err := ioutil.ReadAll(c.Request.Body)
+		if err != nil {
+			log.Error().Msgf("fake callback error %v", err)
+		}
+		log.Info().Msgf("fake call back:\n%s", string(b))
+		c.String(http.StatusOK, "ok")
+	})
 
 	c.CallbackGroup = RpcEngine.Group("/api/callback")
-	log.Info().Msgf("init rpc server:%s")
+	log.Info().Msgf("init rpc server")
 	return nil
 }
 

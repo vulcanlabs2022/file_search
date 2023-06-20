@@ -100,6 +100,10 @@ func (s *Service) HandleQuestion(c *gin.Context) {
 	}
 
 	callbackUri := c.PostForm("callback")
+	typeStr := c.PostForm("type")
+	if typeStr == "" {
+		typeStr = "full_doc"
+	}
 
 	if conv_id == "" {
 		conv_id = uuid.NewString()
@@ -111,6 +115,7 @@ func (s *Service) HandleQuestion(c *gin.Context) {
 		ConversationId: conv_id,
 		Model:          modelName,
 		FilePath:       filePath,
+		Type:           typeStr,
 	}
 	ctx, _ := context.WithTimeout(context.Background(), WaitForAIAnswer)
 	go s.questionCallback(ctx, q, callbackUri)

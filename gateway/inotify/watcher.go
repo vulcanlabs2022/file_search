@@ -65,17 +65,17 @@ func WatchPath(path string) {
 
 func dedupLoop(w *jfsnotify.Watcher) {
 	var (
-		// Wait 100ms for new events; each new event resets the timer.
-		waitFor = 1000 * time.Millisecond
+		// Wait 500ms for new events; each new event resets the timer.
+		waitFor = 500 * time.Millisecond
 
 		// Keep track of the timers, as path → timer.
-		mu     sync.Mutex
-		timers = make(map[string]*time.Timer)
+		mu           sync.Mutex
+		timers       = make(map[string]*time.Timer)
+		pendingEvent = make(map[string]jfsnotify.Event)
 
 		// Callback we run.
 		printEvent = func(e jfsnotify.Event) {
-			printTime(e.String())
-
+			log.Info().Msgf("handle event %v %v", e.Op.String(), e.Name)
 			// Don't need to remove the timer if you don't have a lot of files.
 			mu.Lock()
 			delete(timers, e.Name)
@@ -97,17 +97,21 @@ func dedupLoop(w *jfsnotify.Watcher) {
 				log.Warn().Msg("watcher event channel closed")
 				return
 			}
-			log.Debug().Msgf("pending event %v", e)
+			log.Debug().Msgf(e.Op.String() + e.Name)
 			// Get timer.
 			mu.Lock()
+			pendingEvent[e.Name] = e
 			t, ok := timers[e.Name]
 			mu.Unlock()
 
 			// No timer yet, so create one.
 			if !ok {
 				t = time.AfterFunc(math.MaxInt64, func() {
-					printEvent(e)
-					err := handleEvent(e)
+					mu.Lock()
+					ev := pendingEvent[e.Name]
+					mu.Unlock()
+					printEvent(ev)
+					err := handleEvent(ev)
 					if err != nil {
 						log.Error().Msgf("handle watch file event error %s", err.Error())
 					}
