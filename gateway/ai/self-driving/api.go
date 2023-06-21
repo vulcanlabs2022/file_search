@@ -21,7 +21,7 @@ import (
 
 const MaxMsgLogLength = 50
 const MaxPromtLength = 20480
-const MaxPostTimeOut = 300
+const MaxPostTimeOut = 3600
 const ReadTickerTime = time.Millisecond * 200
 const JsonSuffix = "}\n"
 const MaxTry = 1

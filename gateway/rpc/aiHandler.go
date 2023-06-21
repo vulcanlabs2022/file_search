@@ -16,7 +16,7 @@ import (
 )
 
 const SensitiveResponse = "Sorry, as an artificial intelligence, I am unable to provide you with a standardized and satisfactory answer to your question. We will continuously optimize the system to provide better service. Thank you for your question."
-const WaitForAIAnswer = time.Minute * 5
+const WaitForAIAnswer = time.Minute * 60
 const ChatModelName = "chat_model"
 const FileModelName = "file_model"
 const PostCallbackTimeout = 60

@@ -77,17 +77,18 @@ func (bc *BaseClient) Run() {
 	callTask := func() {
 		if nextTask, ok := bc.taskList.Pop(); ok {
 			bc.pendingTask[nextTask.TaskId] = nextTask
-			_, err := callIndexer(nextTask)
+			b, err := callIndexer(nextTask)
 			if err != nil {
 				log.Error().Msgf("call indexer task %v error %v", nextTask, err)
 				bc.taskList.Push(*nextTask)
 				timer.Reset(waitFor)
 			} else {
+				log.Debug().Msgf("call indexer task response %s", string(b))
 				timer.Stop()
 			}
 			return
 		}
-		log.Debug().Msg("no task wait for next round")
+		// log.Debug().Msg("no task wait for next round")
 		timer.Reset(waitFor)
 	}
 
