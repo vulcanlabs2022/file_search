@@ -71,8 +71,9 @@ func (bc *BaseClient) Run() {
 		}
 	}()
 
-	waitFor := time.Second * 5
-	timer := time.NewTimer(waitFor)
+	pollingDuration := time.Second * 5
+	maxTaskDuration := time.Minute * 30
+	timer := time.NewTimer(pollingDuration)
 
 	callTask := func() {
 		if nextTask, ok := bc.taskList.Pop(); ok {
@@ -81,15 +82,15 @@ func (bc *BaseClient) Run() {
 			if err != nil {
 				log.Error().Msgf("call indexer task %v error %v", nextTask, err)
 				bc.taskList.Push(*nextTask)
-				timer.Reset(waitFor)
+				timer.Reset(pollingDuration)
 			} else {
 				log.Debug().Msgf("call indexer task response %s", string(b))
-				timer.Stop()
+				timer.Reset(maxTaskDuration)
 			}
 			return
 		}
 		// log.Debug().Msg("no task wait for next round")
-		timer.Reset(waitFor)
+		timer.Reset(pollingDuration)
 	}
 
 	for {
