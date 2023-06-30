@@ -103,8 +103,8 @@ func (bc *BaseClient) Run() {
 			} else {
 				log.Warn().Msgf("task %s failed", taskStatus.TaskId)
 				if failedTask, ok := bc.pendingTask[string(taskStatus.TaskId)]; ok {
-					log.Info().Msgf("push failed task to retry %v", *failedTask)
-					bc.taskList.Push(*failedTask)
+					log.Error().Msgf("push failed task to retry %v", *failedTask)
+					// bc.taskList.Push(*failedTask)
 				}
 			}
 			callTask()
