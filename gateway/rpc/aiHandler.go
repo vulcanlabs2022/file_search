@@ -117,6 +117,7 @@ func (s *Service) HandleQuestion(c *gin.Context) {
 		FilePath:       filePath,
 		Type:           typeStr,
 	}
+	log.Debug().Msgf("new AI question: %v", q)
 	ctx, _ := context.WithTimeout(context.Background(), WaitForAIAnswer)
 	go s.questionCallback(ctx, q, callbackUri)
 	rep.ResultCode = Success

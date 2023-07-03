@@ -98,13 +98,20 @@ func (bc *BaseClient) Run() {
 		case taskStatus := <-bc.taskCallback:
 			log.Info().Msgf("task status %v", taskStatus)
 			if taskStatus.StatusCode == TaskDone {
-				log.Info().Msgf("task %s done", taskStatus.TaskId)
-				delete(bc.pendingTask, string(taskStatus.TaskId))
+				if successTask, ok := bc.pendingTask[string(taskStatus.TaskId)]; ok {
+					log.Info().Msgf("task %s done: %s %s", taskStatus.TaskId, successTask.Action, successTask.Filename)
+					delete(bc.pendingTask, string(taskStatus.TaskId))
+				} else {
+					log.Warn().Msgf("task %s callback not in pending list", taskStatus.TaskId)
+				}
+
 			} else {
 				log.Warn().Msgf("task %s failed", taskStatus.TaskId)
 				if failedTask, ok := bc.pendingTask[string(taskStatus.TaskId)]; ok {
-					log.Error().Msgf("push failed task to retry %v", *failedTask)
-					// bc.taskList.Push(*failedTask)
+					log.Error().Msgf("task %s failed: %s %s", taskStatus.TaskId, failedTask.Action, failedTask.Filename)
+					delete(bc.pendingTask, string(taskStatus.TaskId))
+				} else {
+					log.Warn().Msgf("task %s callback not in pending list", taskStatus.TaskId)
 				}
 			}
 			callTask()
@@ -127,7 +134,6 @@ func (bc *BaseClient) SubscribeTaskStatus() error {
 			c.String(http.StatusBadRequest, err.Error())
 			return
 		}
-		log.Info().Msgf("vector task callback %v", taskStatus)
 		go func() {
 			bc.taskCallback <- taskStatus
 		}()
