@@ -34,7 +34,7 @@ const DefaultPort = "6317"
 
 func init() {
 	app = cli.NewApp()
-	app.Version = "v0.2.13"
+	app.Version = "${VERSION}"
 	app.Commands = []cli.Command{
 		commandStart,
 	}
@@ -77,6 +77,9 @@ func Start(ctx *cli.Context) {
 	if mongoUri != "" {
 		db.MongoURI = mongoUri
 	}
+	indexerUrl := os.Getenv("INDEXER_MODEL_URI")
+	inotify.IndexerUrl = indexerUrl
+
 	db.Init()
 
 	rpc.InitRpcService(url, port, username, password, map[string]string{
@@ -85,6 +88,7 @@ func Start(ctx *cli.Context) {
 	})
 
 	inotify.WatchPath(watchDir)
+	go inotify.VectorCli.Run()
 	contx := context.Background()
 	err := rpc.RpcServer.Start(contx)
 	if err != nil {

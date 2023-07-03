@@ -17,6 +17,7 @@ import (
 	"bytetrade.io/web3os/fs-lib/jfsnotify"
 
 	// "github.com/fsnotify/fsnotify"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
@@ -61,7 +62,7 @@ func WatchPath(path string) {
 
 func dedupLoop(w *jfsnotify.Watcher) {
 	var (
-		// Wait 100ms for new events; each new event resets the timer.
+		// Wait 1000ms for new events; each new event resets the timer.
 		waitFor = 1000 * time.Millisecond
 
 		// Keep track of the timers, as path → timer.
@@ -149,19 +150,19 @@ func handleEvent(e jfsnotify.Event) error {
 	}
 
 	if e.Has(jfsnotify.Create) {
-		err := filepath.Walk(e.Name, func(path string, info fs.FileInfo, err error) error {
+		err := filepath.Walk(e.Name, func(childPath string, info fs.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 			if info.IsDir() {
 				//add dir to watch list
-				err = watcher.Add(path)
+				err = watcher.Add(childPath)
 				if err != nil {
 					log.Error().Msgf("watcher add error:%v", err)
 				}
 			} else {
 				//input zinc file
-				err = updateOrInputDoc(path)
+				err = updateOrInputDoc(childPath)
 				if err != nil {
 					log.Error().Msgf("update or input doc error %v", err)
 				}
@@ -175,6 +176,16 @@ func handleEvent(e jfsnotify.Event) error {
 	}
 
 	if e.Has(jfsnotify.Write) || e.Has(jfsnotify.Chmod) {
+		log.Info().Msgf("push fs task insert %s", e.Name)
+		VectorCli.fsTask <- VectorDBTask{
+			Filename:  path.Base(e.Name),
+			Filepath:  e.Name,
+			IsInsert:  true,
+			Action:    UpdataAction,
+			TaskId:    uuid.NewString(),
+			StartTime: time.Now().Unix(),
+			FileId:    fileId(e.Name),
+		}
 		return updateOrInputDoc(e.Name)
 	}
 	return nil

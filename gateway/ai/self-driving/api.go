@@ -21,7 +21,7 @@ import (
 
 const MaxMsgLogLength = 50
 const MaxPromtLength = 20480
-const MaxPostTimeOut = 300
+const MaxPostTimeOut = 3600
 const ReadTickerTime = time.Millisecond * 200
 const JsonSuffix = "}\n"
 const MaxTry = 1
@@ -35,6 +35,7 @@ type BSRequest struct {
 	Query   string     `json:"query"`
 	History [][]string `json:"history"`
 	Text    string     `json:"text"`
+	Type    string     `json:"type"` //basic, single_doc, full_doc
 }
 
 type BSResponse struct {
@@ -64,6 +65,7 @@ func (c *Client) buildPromt(q *common.Question) (*BSRequest, error) {
 	promt := BSRequest{
 		Query:   q.Message,
 		History: [][]string{},
+		Type:    q.Type,
 	}
 	conversationFrom := time.Now().Unix() - int64(MaxConversactionSuspend)
 	msgLog, err := db.GetResentConversation(q.ConversationId, conversationFrom)

@@ -1,9 +1,9 @@
 name: Push Docker Image Master
 on:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
     # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
+    tags: ['*']
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -31,6 +31,12 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: true
+
+      - name: Write Tag to code
+        uses: brettdorrans/write-version-to-file@v1.1.0
+        with:
+          filename: 'gateway/main.go'
+          placeholder: '${VERSION}'
 
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer

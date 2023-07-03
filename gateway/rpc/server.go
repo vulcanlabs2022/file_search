@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"sync"
@@ -53,6 +54,7 @@ type Service struct {
 	bsApiClient      map[string]*selfdriving.Client //modelname -> client
 	questionCh       chan (common.PendingQuestion)
 	maxPendingLength int
+	CallbackGroup    *gin.RouterGroup
 }
 
 func InitRpcService(url, port, username, password string, bsModelConfig map[string]string) {
@@ -86,6 +88,9 @@ func InitRpcService(url, port, username, password string, bsModelConfig map[stri
 			log.Info().Msgf("init model name:%s url:%s", modelName, url)
 			RpcServer.bsApiClient[modelName] = selfdriving.NewClient(url, modelName, context.Background())
 		}
+
+		//load routes
+		RpcServer.loadRoutes(context.Background())
 	})
 }
 
@@ -105,30 +110,46 @@ type Resp struct {
 	ResultMsg  string `json:"data"`
 }
 
+var RpcEngine *gin.Engine
+
 func (c *Service) Start(ctx context.Context) error {
+	address := "0.0.0.0:" + c.port
+	go RpcEngine.Run(address)
+	log.Info().Msgf("start rpc on port:%s", c.port)
+	return nil
+}
+
+func (c *Service) loadRoutes(ctx context.Context) error {
 	//start ai question service
 	postQuestionsContext, _ := context.WithCancel(ctx)
 	go c.StartChatService(postQuestionsContext)
 
 	//start gin
 	gin.DefaultWriter = &LoggerMy{}
-	r := gin.Default()
+	RpcEngine = gin.Default()
 
 	//cors middleware
-	r.SetTrustedProxies(nil)
-	r.GET("/healthcheck", func(c *gin.Context) {
+	RpcEngine.SetTrustedProxies(nil)
+	RpcEngine.GET("/healthcheck", func(c *gin.Context) {
 		c.String(http.StatusOK, "ok")
 	})
 
-	r.POST("/api/input", c.HandleInput)
-	r.POST("/api/delete", c.HandleDelete)
-	r.POST("/api/query", c.HandleQuery)
+	RpcEngine.POST("/api/input", c.HandleInput)
+	RpcEngine.POST("/api/delete", c.HandleDelete)
+	RpcEngine.POST("/api/query", c.HandleQuery)
 
-	r.POST("/api/ai/question", c.HandleQuestion)
-	address := "0.0.0.0:" + c.port
+	RpcEngine.POST("/api/ai/question", c.HandleQuestion)
+	RpcEngine.POST("/api/ai/fake/callback", func(c *gin.Context) {
+		b, err := ioutil.ReadAll(c.Request.Body)
+		if err != nil {
+			log.Error().Msgf("fake callback error %v", err)
+		}
+		log.Info().Msgf("fake call back:\n%s", string(b))
+		c.String(http.StatusOK, "ok")
+	})
 
-	go r.Run(address)
-	log.Info().Msgf("start rpc on port:%s", c.port)
+	c.CallbackGroup = RpcEngine.Group("/api/callback")
+	log.Info().Msgf("init rpc server")
 	return nil
 }
 

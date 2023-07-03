@@ -16,7 +16,7 @@ import (
 )
 
 const SensitiveResponse = "Sorry, as an artificial intelligence, I am unable to provide you with a standardized and satisfactory answer to your question. We will continuously optimize the system to provide better service. Thank you for your question."
-const WaitForAIAnswer = time.Minute * 5
+const WaitForAIAnswer = time.Minute * 60
 const ChatModelName = "chat_model"
 const FileModelName = "file_model"
 const PostCallbackTimeout = 60
@@ -100,6 +100,10 @@ func (s *Service) HandleQuestion(c *gin.Context) {
 	}
 
 	callbackUri := c.PostForm("callback")
+	typeStr := c.PostForm("type")
+	if typeStr == "" {
+		typeStr = "basic"
+	}
 
 	if conv_id == "" {
 		conv_id = uuid.NewString()
@@ -111,6 +115,7 @@ func (s *Service) HandleQuestion(c *gin.Context) {
 		ConversationId: conv_id,
 		Model:          modelName,
 		FilePath:       filePath,
+		Type:           typeStr,
 	}
 	ctx, _ := context.WithTimeout(context.Background(), WaitForAIAnswer)
 	go s.questionCallback(ctx, q, callbackUri)

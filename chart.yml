@@ -1,0 +1,196 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: search
+  namespace: user-space-vulcanlabs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    name: search
+  annotations:
+    deployment.kubernetes.io/revision: '1'
+    meta.helm.sh/release-name: apps-vulcanlabs
+    meta.helm.sh/release-namespace: user-space-vulcanlabs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: search
+      name: search
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: search
+        name: search
+    spec:
+      volumes:
+      - name: index-data
+        hostPath:
+          path: >-
+            /terminus/rootfs/userspace/pvc-b49a3304-59af-41b9-9168-aef29046c619/appdata/search/index-data
+          type: DirectoryOrCreate
+      - name: mongo-data
+        hostPath:
+          path: >-
+            /terminus/rootfs/userspace/pvc-b49a3304-59af-41b9-9168-aef29046c619/appdata/search/db
+          type: DirectoryOrCreate
+      - name: watch-dir
+        hostPath:
+          path: >-
+            /terminus/rootfs/userspace/pvc-b49a3304-59af-41b9-9168-aef29046c619/Home/Documents
+          type: Directory
+      - name: ai-data
+        hostPath:
+          path: >-
+            /terminus/rootfs/userspace/pvc-b49a3304-59af-41b9-9168-aef29046c619/appdata/search/data
+          type: Directory
+      containers:
+      - name: mongodb
+        image: 'mongo:4.4.5'
+        ports:
+        - name: http
+          containerPort: 27017
+          protocol: TCP
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          value: admin
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          value: '123456'
+        resources: {}
+        volumeMounts:
+        - name: mongo-data
+          mountPath: /data/db
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        imagePullPolicy: IfNotPresent
+      - name: zinc-server
+        image: 'public.ecr.aws/zinclabs/zinc:0.4.3'
+        ports:
+        - name: http
+          containerPort: 4080
+          protocol: TCP
+        env:
+        - name: ZINC_FIRST_ADMIN_USER
+          value: admin
+        - name: ZINC_FIRST_ADMIN_PASSWORD
+          value: User#123
+        - name: ZINC_DATA_PATH
+          value: /data
+        resources: {}
+        volumeMounts:
+        - name: index-data
+          mountPath: /data
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        imagePullPolicy: IfNotPresent
+      - name: zinc-gateway
+        image: 'calehh/file_search:v0.2.17_alpha'
+        ports:
+        - name: http
+          containerPort: 6317
+          protocol: TCP
+        env:
+        - name: ZINC_FIRST_ADMIN_USER
+          value: admin
+        - name: ZINC_FIRST_ADMIN_PASSWORD
+          value: User#123
+        - name: ZINC_URI
+          value: 'http://localhost:4080'
+        - name: MONGO_URI
+          value: 'mongodb://admin:123456@localhost:27017'
+        - name: WATCH_DIR
+          value: /Home/Documents
+        - name: FILE_MODEL_URI
+          value: 'http://localhost:8087/nlp/Vicuna_infer_v1'
+        - name: CHAT_MODEL_URI
+          value: 'http://localhost:8087/nlp/Vicuna_infer_v1'
+        - name: INDEXER_MODEL_URI
+          value: 'http://localhost:8055/nlp/generate_embedding'
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: CONTAINER_NAME
+          value: zinc-gateway
+        - name: NOTIFY_SERVER
+          value: 'fsnotify-svc.user-system-vulcanlabs:5079'
+        resources: {}
+        volumeMounts:
+        - name: watch-dir
+          mountPath: /Home/Documents
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        imagePullPolicy: IfNotPresent
+      - name: ai-llm
+        image: 'calehh/vicuna_infer_base:v0.1.2_test'
+        command: ["python3.10", "ask_ai.py", "--cpp_model", "/data/3b_ggml-model-q4_0.bin", "--embedding_model", "/data/instructor-base", "--n_threads", "3"]
+        ports:
+        - name: http
+          containerPort: 8087
+          protocol: TCP
+        resources:
+          requests:
+            memory: 5120Mi
+          limits:
+            memory: 8192Mi
+        securityContext:
+          sysctls:
+          - name: vm.swappiness
+            value: "0"
+        volumeMounts:
+        - name: ai-data
+          mountPath: /data
+        - name: watch-dir
+          mountPath: /Home/Documents
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        imagePullPolicy: IfNotPresent
+      - name: ai-indexer
+        image: 'calehh/vicuna_infer_base:v0.1.2_test'
+        command: ["python3.10", "generate_embedding.py", "--embedding_model", "/data/instructor-base", "--back_url", "http://localhost:6317/api/callback/vector"]
+        ports:
+        - name: http
+          containerPort: 8055
+          protocol: TCP
+        resources: {}
+        volumeMounts:
+        - name: ai-data
+          mountPath: /data
+        - name: watch-dir
+          mountPath: /Home/Documents
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        imagePullPolicy: IfNotPresent
+      - name: provider-bridge
+        image: 'aboveos/search-provder:v0.1.5'
+        ports:
+        - name: http
+          containerPort: 3020
+          protocol: TCP
+        env:
+        - name: OS_SYSTEM_SERVER
+          value: system-server.user-system-vulcanlabs
+        - name: OS_APP_SECRET
+          value: cfb84d8761190dba
+        - name: OS_APP_KEY
+          value: bytetrade_search_16859
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      securityContext:
+        runAsUser: 0
+      schedulerName: default-scheduler
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600
