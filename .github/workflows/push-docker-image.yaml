@@ -1,7 +1,7 @@
 name: Push Docker Image Master
 on:
   push:
-    branches: ["master"]
+    branches: ["master","dev"]
     # Publish semver tags as releases.
     tags: ['*']
 
