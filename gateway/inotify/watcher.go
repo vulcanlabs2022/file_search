@@ -131,6 +131,16 @@ func dedupLoop(w *jfsnotify.Watcher) {
 
 func handleEvent(e jfsnotify.Event) error {
 	if e.Has(jfsnotify.Remove) || e.Has(jfsnotify.Rename) {
+		log.Info().Msgf("push fs task delete %s", e.Name)
+		VectorCli.fsTask <- VectorDBTask{
+			Filename:  path.Base(e.Name),
+			Filepath:  e.Name,
+			IsInsert:  false,
+			Action:    DeleteAction,
+			TaskId:    uuid.NewString(),
+			StartTime: time.Now().Unix(),
+			FileId:    fileId(e.Name),
+		}
 		res, err := rpc.RpcServer.ZincQueryByPath(rpc.FileIndex, e.Name)
 		if err != nil {
 			return err
@@ -161,6 +171,16 @@ func handleEvent(e jfsnotify.Event) error {
 					log.Error().Msgf("watcher add error:%v", err)
 				}
 			} else {
+				log.Info().Msgf("push fs task insert %s", childPath)
+				VectorCli.fsTask <- VectorDBTask{
+					Filename:  path.Base(childPath),
+					Filepath:  childPath,
+					IsInsert:  true,
+					Action:    AddAction,
+					TaskId:    uuid.NewString(),
+					StartTime: time.Now().Unix(),
+					FileId:    fileId(childPath),
+				}
 				//input zinc file
 				err = updateOrInputDoc(childPath)
 				if err != nil {
