@@ -21,10 +21,8 @@ import (
 )
 
 var watcher *jfsnotify.Watcher
-var PathRoot *node
 
 func WatchPath(path string) {
-	PathRoot = new(node)
 	// Create a new watcher.
 	var err error
 	watcher, err = jfsnotify.NewWatcher("myWatcher")
@@ -47,7 +45,6 @@ func WatchPath(path string) {
 				return err
 			}
 		} else {
-			PathRoot.addFile(path)
 			err = updateOrInputDoc(path)
 			if err != nil {
 				log.Error().Msgf("udpate or input doc err %v", err)
@@ -126,24 +123,6 @@ func dedupLoop(w *jfsnotify.Watcher) {
 
 func handleEvent(e jfsnotify.Event) error {
 	if e.Has(jfsnotify.Remove) || e.Has(jfsnotify.Rename) {
-		deletedList := PathRoot.deletePath(e.Name)
-		for _, filePath := range deletedList {
-			res, err := rpc.RpcServer.ZincQueryByPath(rpc.FileIndex, filePath)
-			if err != nil {
-				continue
-			}
-			docs, err := rpc.GetFileQueryResult(res)
-			if err != nil {
-				continue
-			}
-			for _, doc := range docs {
-				_, err = rpc.RpcServer.ZincDelete(doc.DocId, rpc.FileIndex)
-				if err != nil {
-					log.Error().Msgf("zinc delete error %s", err.Error())
-				}
-				log.Debug().Msgf("delete doc id %s path %s", doc.DocId, filePath)
-			}
-		}
 		res, err := rpc.RpcServer.ZincQueryByPath(rpc.FileIndex, e.Name)
 		if err != nil {
 			return err
@@ -174,7 +153,6 @@ func handleEvent(e jfsnotify.Event) error {
 					log.Error().Msgf("watcher add error:%v", err)
 				}
 			} else {
-				PathRoot.addFile(path)
 				//input zinc file
 				err = updateOrInputDoc(path)
 				if err != nil {
