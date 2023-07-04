@@ -2,6 +2,8 @@ package common
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -71,4 +73,13 @@ func HttpPost(requrl, body string, timeoutS int) (*http.Response, error) {
 
 	resp, err := client.Do(req)
 	return resp, err
+}
+
+func Md5File(f io.Reader) string {
+	hasher := md5.New()
+	if _, err := io.Copy(hasher, f); err != nil {
+		log.Error().Msgf("Md5 file error %v", err)
+		return ""
+	}
+	return hex.EncodeToString(hasher.Sum(nil))
 }

@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"wzinc/common"
 	"wzinc/parser"
 
 	"github.com/gin-gonic/gin"
@@ -43,6 +44,8 @@ func (s *Service) HandleFileInput(c *gin.Context) {
 
 	size := int64(len([]byte(content)))
 
+	md5 := common.Md5File(bytes.NewReader([]byte(content)))
+
 	fileHeader, err := c.FormFile("doc")
 	if err == nil {
 		file, err := fileHeader.Open()
@@ -63,7 +66,7 @@ func (s *Service) HandleFileInput(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, rep)
 			return
 		}
-
+		md5 = common.Md5File(r)
 		size = fileHeader.Size
 	}
 
@@ -74,6 +77,7 @@ func (s *Service) HandleFileInput(c *gin.Context) {
 	doc := map[string]interface{}{
 		"name":        filename,
 		"where":       filePath,
+		"md5":         md5,
 		"content":     content,
 		"size":        size,
 		"created":     time.Now().Unix(),
@@ -163,7 +167,7 @@ func (s *Service) HandleFileQuery(c *gin.Context) {
 	log.Debug().Msgf("zinc query results %v", results)
 
 	rep.ResultCode = Success
-	items := slashFileQueryResult(results)
+	items := s.slashFileQueryResult(results)
 	log.Debug().Msgf("zinc query items %v", items)
 	response := FileQueryResp{
 		Count:  len(items),
@@ -188,7 +192,7 @@ type FileQueryItem struct {
 	Snippet  string `json:"snippet"`
 }
 
-func slashFileQueryResult(results []FileQueryResult) []FileQueryItem {
+func (s *Service) slashFileQueryResult(results []FileQueryResult) []FileQueryItem {
 	type record struct {
 		FileQueryItem
 		id int
@@ -199,6 +203,12 @@ func slashFileQueryResult(results []FileQueryResult) []FileQueryItem {
 	for _, res := range results {
 		fileInfo, err := os.Stat(res.Where)
 		if os.IsNotExist(err) {
+			//delete if not exist
+			log.Info().Msgf("zinc delete query found but not exist file %s id %s", res.Where, res.DocId)
+			_, err := s.ZincDelete(res.DocId, FileIndex)
+			if err != nil {
+				log.Error().Msgf("zinc delete file error path %s id %s", res.Where, res.DocId)
+			}
 			continue
 		}
 		if err == nil {

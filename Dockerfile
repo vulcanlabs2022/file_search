@@ -33,7 +33,7 @@ RUN go build -o wzinc
 ############################
 # STEP 3 build a small image
 ############################
-FROM ubuntu:latest
+FROM ubuntu:22.04
 
 # Import the user and group files from the builder.
 COPY --from=builder /etc/passwd /etc/passwd

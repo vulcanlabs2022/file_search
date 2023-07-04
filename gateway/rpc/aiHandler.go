@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	selfdriving "wzinc/ai/self-driving"
 	"wzinc/common"
 	"wzinc/db"
 	"wzinc/parser"
@@ -101,8 +102,13 @@ func (s *Service) HandleQuestion(c *gin.Context) {
 
 	callbackUri := c.PostForm("callback")
 	typeStr := c.PostForm("type")
+
+	if filePath == selfdriving.FullDocOption {
+		typeStr = selfdriving.FullDocOption
+	}
+
 	if typeStr == "" {
-		typeStr = "basic"
+		typeStr = selfdriving.BasicOption
 	}
 
 	if conv_id == "" {
@@ -149,6 +155,7 @@ func (s *Service) questionCallback(ctx context.Context, q common.Question, callb
 			ResultMsg:  "pending question timeout",
 		}
 		b, _ := json.Marshal(&resp)
+		log.Debug().Msgf("post callback %s body %s", callbackUri, string(b))
 		_, err := common.HttpPost(callbackUri, string(b), PostCallbackTimeout)
 		if err != nil {
 			log.Error().Msgf("post callback %s body %s err %s", callbackUri, string(b), err.Error())
@@ -165,6 +172,7 @@ func (s *Service) questionCallback(ctx context.Context, q common.Question, callb
 					ResultMsg:  "wait AI output timeout",
 				}
 				b, _ := json.Marshal(&resp)
+				log.Debug().Msgf("post callback %s body %s", callbackUri, string(b))
 				_, err := common.HttpPost(callbackUri, string(b), PostCallbackTimeout)
 				if err != nil {
 					log.Error().Msgf("post callback %s body %s err %s", callbackUri, string(b), err.Error())
@@ -180,6 +188,7 @@ func (s *Service) questionCallback(ctx context.Context, q common.Question, callb
 						ResultMsg:  finish.ErrorMsg,
 					}
 					b, _ := json.Marshal(&resp)
+					log.Debug().Msgf("post callback %s body %s", callbackUri, string(b))
 					_, err := common.HttpPost(callbackUri, string(b), PostCallbackTimeout)
 					if err != nil {
 						log.Error().Msgf("post callback %s body %s err %s", callbackUri, string(b), err.Error())
@@ -194,6 +203,7 @@ func (s *Service) questionCallback(ctx context.Context, q common.Question, callb
 						ResultMsg:  "finish messageId empty",
 					}
 					b, _ := json.Marshal(&resp)
+					log.Debug().Msgf("post callback %s body %s", callbackUri, string(b))
 					_, err := common.HttpPost(callbackUri, string(b), PostCallbackTimeout)
 					if err != nil {
 						log.Error().Msgf("post callback %s body %s err %s", callbackUri, string(b), err.Error())
@@ -215,6 +225,7 @@ func (s *Service) questionCallback(ctx context.Context, q common.Question, callb
 					ResultMsg:  string(msg),
 				}
 				b, _ := json.Marshal(&resp)
+				log.Debug().Msgf("post callback %s body %s", callbackUri, string(b))
 				_, err := common.HttpPost(callbackUri, string(b), PostCallbackTimeout)
 				if err != nil {
 					log.Error().Msgf("post callback %s body %s err %s", callbackUri, string(b), err.Error())
@@ -254,6 +265,7 @@ func (s *Service) questionCallback(ctx context.Context, q common.Question, callb
 					ResultMsg:  string(msg),
 				}
 				b, _ := json.Marshal(&resp)
+				log.Debug().Msgf("post callback %s body %s", callbackUri, string(b))
 				_, err := common.HttpPost(callbackUri, string(b), PostCallbackTimeout)
 				if err != nil {
 					log.Error().Msgf("post callback %s body %s err %s", callbackUri, string(b), err.Error())

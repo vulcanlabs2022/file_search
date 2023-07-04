@@ -79,6 +79,7 @@ type Document struct {
 type FileQueryResult struct {
 	Index       string   `json:"index"`
 	Where       string   `json:"where"`
+	Md5         string   `json:"md5"`
 	Name        string   `json:"name"`
 	DocId       string   `json:"docId"`
 	Created     int64    `json:"created"`
@@ -176,6 +177,9 @@ func GetFileQueryResult(resp *zinc.MetaSearchResponse) ([]FileQueryResult, error
 		}
 		if where, ok := hit.Source["where"].(string); ok {
 			result.Where = where
+		}
+		if md5, ok := hit.Source["md5"].(string); ok {
+			result.Md5 = md5
 		}
 		if name, ok := hit.Source["name"].(string); ok {
 			result.Name = name
@@ -320,9 +324,9 @@ func (s *Service) setIndexMapping(indexName string) error {
 	content.SetType("text")
 	content.SetIndex(true)
 	content.SetHighlightable(true)
-	content.SetStore(true)
 	content.SetAggregatable(false)
 	content.SetSortable(false)
+	content.SetStore(false)
 
 	where := zinc.NewMetaProperty()
 	where.SetType("text")
@@ -330,11 +334,17 @@ func (s *Service) setIndexMapping(indexName string) error {
 	where.SetHighlightable(false)
 	where.SetAggregatable(false)
 	where.SetAnalyzer("keyword")
-	content.SetStore(false)
+
+	md5 := zinc.NewMetaProperty()
+	md5.SetType("text")
+	md5.SetHighlightable(false)
+	md5.SetAggregatable(false)
+	md5.SetAnalyzer("keyword")
 
 	mapping.SetProperties(map[string]zinc.MetaProperty{
 		ContentFieldName: *content,
 		"where":          *where,
+		"md5":            *md5,
 	})
 
 	_, r, err := s.apiClient.Index.SetMapping(ctx, indexName).Mapping(mapping).Execute()
@@ -372,7 +382,7 @@ func (s *Service) GetContentByDocId(index, docId string) (string, error) {
 	return content, nil
 }
 
-func (s *Service) UpdateFileContentFromOldDoc(index, newContent string, oldDoc FileQueryResult) (string, error) {
+func (s *Service) UpdateFileContentFromOldDoc(index, newContent, md5 string, oldDoc FileQueryResult) (string, error) {
 	size := 0
 	fileInfo, err := os.Stat(oldDoc.Where)
 	if err == nil {
@@ -381,6 +391,7 @@ func (s *Service) UpdateFileContentFromOldDoc(index, newContent string, oldDoc F
 	newDoc := map[string]interface{}{
 		"name":        oldDoc.Name,
 		"where":       oldDoc.Where,
+		"md5":         md5,
 		"content":     newContent,
 		"size":        size,
 		"created":     oldDoc.Created,
@@ -399,7 +410,7 @@ func (s *Service) UpdateFileContentFromOldDoc(index, newContent string, oldDoc F
 	return resp.GetId(), nil
 }
 
-func (s *Service) UpdateFileContentByPath(index, path, newContent string) (string, error) {
+func (s *Service) UpdateFileContentByPath(index, path, md5, newContent string) (string, error) {
 	res, err := s.ZincQueryByPath(index, path)
 	if err != nil {
 		return "", err
@@ -420,6 +431,7 @@ func (s *Service) UpdateFileContentByPath(index, path, newContent string) (strin
 	newDoc := map[string]interface{}{
 		"name":        oldDoc.Name,
 		"where":       oldDoc.Where,
+		"md5":         md5,
 		"content":     newContent,
 		"size":        size,
 		"created":     oldDoc.Created,

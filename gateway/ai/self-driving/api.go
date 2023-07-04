@@ -29,6 +29,12 @@ const RetryWaitTime = time.Second
 
 const FakeAnswer = "Elon Musk is an American entrepreneur, engineer and inventor who has founded several successful companies including SpaceX, Tesla Motors and SolarCity. He is also known for his work in developing electric cars and solar energy systems."
 
+const (
+	FullDocOption   = "full_doc"
+	SingleDocOption = "single_doc"
+	BasicOption     = "basic"
+)
+
 var MaxConversactionSuspend = 60 * 60 //1 hour
 
 type BSRequest struct {

@@ -93,7 +93,7 @@ func (s *Service) HandleRssInput(c *gin.Context) {
 	if err != nil {
 		rep.ResultCode = ErrorCodeInput
 		rep.ResultMsg = err.Error()
-		log.Error().Msgf("input rss error", err.Error())
+		log.Error().Msgf("input rss error %s", err.Error())
 		c.JSON(http.StatusBadRequest, rep)
 		return
 	}

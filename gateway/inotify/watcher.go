@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+	"wzinc/common"
 	"wzinc/parser"
 	"wzinc/rpc"
 
@@ -56,8 +57,6 @@ func WatchPath(path string) {
 	if err != nil {
 		panic(err)
 	}
-
-	printTime("ready; press ^C to exit")
 }
 
 func dedupLoop(w *jfsnotify.Watcher) {
@@ -221,52 +220,69 @@ func updateOrInputDoc(filepath string) error {
 	if err != nil {
 		return err
 	}
-	// update doc if path exist
-	// if len(docs) > 0 {
-	// 	fileType := parser.GetTypeFromName(filepath)
-	// 	if _, ok := parser.ParseAble[fileType]; ok {
-	// 		f, err := os.Open(filepath)
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 		defer f.Close()
-	// 		content, err := parser.ParseDoc(f, filepath)
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 		log.Debug().Msgf("try update content from old doc id %s path %s", docs[0].DocId, filepath)
-	// 		_, err = rpc.RpcServer.UpdateFileContentFromOldDoc(rpc.FileIndex, content, docs[0])
-	// 		return err
-	// 	}
-	// 	return nil
-	// }
-
-	//delete all
-	for _, doc := range docs {
-		log.Debug().Msgf("try delete docid %s path %s", doc.DocId, doc.Where)
-		_, err := rpc.RpcServer.ZincDelete(doc.DocId, rpc.FileIndex)
-		if err != nil {
-			log.Error().Msgf("zinc delete error %v", err)
+	// path exist update doc
+	if len(docs) > 0 {
+		log.Debug().Msgf("has doc %v", docs[0])
+		//delete redundant docs
+		if len(docs) > 1 {
+			for _, doc := range docs[1:] {
+				log.Debug().Msgf("delete redundant docid %s path %s", doc.DocId, doc.Where)
+				_, err := rpc.RpcServer.ZincDelete(doc.DocId, rpc.FileIndex)
+				if err != nil {
+					log.Error().Msgf("zinc delete error %v", err)
+				}
+			}
 		}
-	}
-
-	//input new doc if path not exist
-	fileType := parser.GetTypeFromName(filepath)
-	content := ""
-	if _, ok := parser.ParseAble[fileType]; ok {
+		//update if doc changed
 		f, err := os.Open(filepath)
 		if err != nil {
 			return err
 		}
-		data, _ := ioutil.ReadAll(f)
+		b, err := ioutil.ReadAll(f)
 		f.Close()
-		r := bytes.NewReader(data)
-		content, err = parser.ParseDoc(r, filepath)
+		if err != nil {
+			return err
+		}
+		newMd5 := common.Md5File(bytes.NewReader(b))
+		if newMd5 != docs[0].Md5 {
+			//doc changed
+			fileType := parser.GetTypeFromName(filepath)
+			if _, ok := parser.ParseAble[fileType]; ok {
+				content, err := parser.ParseDoc(bytes.NewReader(b), filepath)
+				if err != nil {
+					return err
+				}
+				log.Debug().Msgf("update content from old doc id %s path %s", docs[0].DocId, filepath)
+				_, err = rpc.RpcServer.UpdateFileContentFromOldDoc(rpc.FileIndex, content, newMd5, docs[0])
+				return err
+			}
+			log.Debug().Msgf("doc format not parsable %s", filepath)
+			return nil
+		}
+		log.Debug().Msgf("ignore file %s md5: %s ", filepath, newMd5)
+		return nil
+	}
+
+	log.Debug().Msgf("no history doc, add new")
+	//path not exist input doc
+	f, err := os.Open(filepath)
+	if err != nil {
+		return err
+	}
+	b, err := ioutil.ReadAll(f)
+	f.Close()
+	if err != nil {
+		return err
+	}
+	md5 := common.Md5File(bytes.NewReader(b))
+	fileType := parser.GetTypeFromName(filepath)
+	content := ""
+	if _, ok := parser.ParseAble[fileType]; ok {
+		content, err = parser.ParseDoc(bytes.NewBuffer(b), filepath)
 		if err != nil {
 			return err
 		}
 	}
-
 	filename := path.Base(filepath)
 	size := 0
 	fileInfo, err := os.Stat(filepath)
@@ -276,6 +292,7 @@ func updateOrInputDoc(filepath string) error {
 	doc := map[string]interface{}{
 		"name":        filename,
 		"where":       filepath,
+		"md5":         md5,
 		"content":     content,
 		"size":        size,
 		"created":     time.Now().Unix(),
