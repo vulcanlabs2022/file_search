@@ -96,7 +96,7 @@ func (c *Client) buildPromt(q *common.Question) (*BSRequest, error) {
 	}
 
 	//parse doc
-	if q.FilePath != "" {
+	if q.FilePath != "" && q.FilePath != FullDocOption && q.Type != FullDocOption {
 		f, err := os.Open(q.FilePath)
 		if err != nil {
 			return nil, err
