@@ -46,14 +46,13 @@ type BaseClient struct {
 }
 
 func callIndexerTest(task *VectorDBTask) ([]byte, error) {
-	log.Info().Msgf("call %s task taskId %v name %v path %s", task.Action, task.TaskId, task.Filename, task.Filepath)
+	log.Info().Msgf("call indexer %s task taskId %v name %v path %s", task.Action, task.TaskId, task.Filename, task.Filepath)
 	return []byte("ok"), nil
 }
 
 func callIndexer(task *VectorDBTask) ([]byte, error) {
-	log.Info().Msgf("call %s task taskId %v name %v path %s", task.Action, task.TaskId, task.Filename, task.Filepath)
+	log.Info().Msgf("call indexer %s task taskId %v name %v path %s", task.Action, task.TaskId, task.Filename, task.Filepath)
 	b, _ := json.Marshal(task)
-	log.Debug().Msgf("call indexer body %s", string(b))
 	resp, err := common.HttpPost(IndexerUrl, string(b), 60)
 	if err != nil {
 		return nil, err
@@ -96,7 +95,6 @@ func (bc *BaseClient) Run() {
 	for {
 		select {
 		case taskStatus := <-bc.taskCallback:
-			log.Info().Msgf("task status %v", taskStatus)
 			if taskStatus.StatusCode == TaskDone {
 				if successTask, ok := bc.pendingTask[string(taskStatus.TaskId)]; ok {
 					log.Info().Msgf("task %s done: %s %s", taskStatus.TaskId, successTask.Action, successTask.Filename)

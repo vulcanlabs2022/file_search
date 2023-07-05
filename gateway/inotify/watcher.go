@@ -71,7 +71,6 @@ func dedupLoop(w *jfsnotify.Watcher) {
 
 		// Callback we run.
 		printEvent = func(e jfsnotify.Event) {
-			printTime(e.String())
 			log.Info().Msgf("handle event %v %v", e.Op.String(), e.Name)
 
 			// Don't need to remove the timer if you don't have a lot of files.
@@ -130,7 +129,7 @@ func dedupLoop(w *jfsnotify.Watcher) {
 
 func handleEvent(e jfsnotify.Event) error {
 	if e.Has(jfsnotify.Remove) || e.Has(jfsnotify.Rename) {
-		log.Info().Msgf("push fs task delete %s", e.Name)
+		log.Info().Msgf("push indexer task delete %s", e.Name)
 		VectorCli.fsTask <- VectorDBTask{
 			Filename:  path.Base(e.Name),
 			Filepath:  e.Name,
@@ -170,7 +169,7 @@ func handleEvent(e jfsnotify.Event) error {
 					log.Error().Msgf("watcher add error:%v", err)
 				}
 			} else {
-				log.Info().Msgf("push fs task insert %s", childPath)
+				log.Info().Msgf("push indexer task insert %s", childPath)
 				VectorCli.fsTask <- VectorDBTask{
 					Filename:  path.Base(childPath),
 					Filepath:  childPath,
@@ -195,7 +194,7 @@ func handleEvent(e jfsnotify.Event) error {
 	}
 
 	if e.Has(jfsnotify.Write) || e.Has(jfsnotify.Chmod) {
-		log.Info().Msgf("push fs task insert %s", e.Name)
+		log.Info().Msgf("push indexer task insert %s", e.Name)
 		VectorCli.fsTask <- VectorDBTask{
 			Filename:  path.Base(e.Name),
 			Filepath:  e.Name,
