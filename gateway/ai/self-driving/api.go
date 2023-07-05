@@ -7,14 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
+
 	"net/http"
-	"os"
+
 	"strings"
 	"time"
 	"wzinc/common"
 	"wzinc/db"
-	"wzinc/parser"
 
 	"github.com/rs/zerolog/log"
 )
@@ -42,6 +41,7 @@ type BSRequest struct {
 	History [][]string `json:"history"`
 	Text    string     `json:"text"`
 	Type    string     `json:"type"` //basic, single_doc, full_doc
+	Path    string     `json:"path"`
 }
 
 type BSResponse struct {
@@ -94,22 +94,24 @@ func (c *Client) buildPromt(q *common.Question) (*BSRequest, error) {
 			}
 		}
 	}
-
-	//parse doc
-	if q.FilePath != "" && q.FilePath != FullDocOption && q.Type != FullDocOption {
-		f, err := os.Open(q.FilePath)
-		if err != nil {
-			return nil, err
-		}
-		data, _ := ioutil.ReadAll(f)
-		f.Close()
-		r := bytes.NewReader(data)
-		fileStr, err := parser.ParseDoc(r, q.FilePath)
-		if err != nil {
-			return nil, err
-		}
-		promt.Text = fileStr
+	if q.Type == SingleDocOption {
+		promt.Path = q.FilePath
 	}
+	// //parse doc
+	// if q.FilePath != "" && q.FilePath != FullDocOption && q.Type != FullDocOption {
+	// 	f, err := os.Open(q.FilePath)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	data, _ := ioutil.ReadAll(f)
+	// 	f.Close()
+	// 	r := bytes.NewReader(data)
+	// 	fileStr, err := parser.ParseDoc(r, q.FilePath)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	promt.Text = fileStr
+	// }
 	return &promt, nil
 }
 
