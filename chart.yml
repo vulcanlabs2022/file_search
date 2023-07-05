@@ -177,9 +177,9 @@ spec:
         - name: OS_SYSTEM_SERVER
           value: system-server.user-system-vulcanlabs
         - name: OS_APP_SECRET
-          value: cfb84d8761190dba
+          value: 45d4ecb676f385b5
         - name: OS_APP_KEY
-          value: bytetrade_search_16859
+          value: bytetrade_search_8798
         resources: {}
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File

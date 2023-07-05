@@ -84,31 +84,28 @@ func (s *Service) HandleQuestion(c *gin.Context) {
 
 	conv_id := c.PostForm("conversationId")
 	filePath := c.PostForm("path")
-	modelName := ChatModelName
-	if filePath != "" {
-		modelName = FileModelName
-		fileInfo, err := os.Stat(filePath)
-		if err != nil {
-			rep.ResultMsg = err.Error()
-			log.Error().Msg(rep.ResultMsg)
-			return
-		}
-		if !parser.IsParseAble(fileInfo.Name()) {
-			rep.ResultMsg = "file not parsable"
-			log.Error().Msg(rep.ResultMsg)
-			return
-		}
-	}
-
 	callbackUri := c.PostForm("callback")
 	typeStr := c.PostForm("type")
-
-	if filePath == selfdriving.FullDocOption {
-		typeStr = selfdriving.FullDocOption
-	}
-
-	if typeStr == "" {
-		typeStr = selfdriving.BasicOption
+	typeStr = selfdriving.BasicOption
+	modelName := ChatModelName
+	if filePath != "" {
+		if filePath == selfdriving.FullDocOption {
+			typeStr = selfdriving.FullDocOption
+		} else {
+			typeStr = selfdriving.SingleDocOption
+			modelName = FileModelName
+			fileInfo, err := os.Stat(filePath)
+			if err != nil {
+				rep.ResultMsg = err.Error()
+				log.Error().Msg(rep.ResultMsg)
+				return
+			}
+			if !parser.IsParseAble(fileInfo.Name()) {
+				rep.ResultMsg = "file not parsable"
+				log.Error().Msg(rep.ResultMsg)
+				return
+			}
+		}
 	}
 
 	if conv_id == "" {

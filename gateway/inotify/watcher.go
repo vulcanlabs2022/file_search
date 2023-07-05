@@ -222,7 +222,7 @@ func updateOrInputDoc(filepath string) error {
 	}
 	// path exist update doc
 	if len(docs) > 0 {
-		log.Debug().Msgf("has doc %v", docs[0])
+		log.Debug().Msgf("has doc %v", docs[0].Where)
 		//delete redundant docs
 		if len(docs) > 1 {
 			for _, doc := range docs[1:] {
