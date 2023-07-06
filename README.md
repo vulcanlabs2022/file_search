@@ -6,13 +6,11 @@ docker pull calehh/file_search:latest
 ```
 https://hub.docker.com/repository/docker/calehh/file_search
 
-## Startup
+## 部署
 
-编排参考docker-compose-example.yml
+编排参考chart.yml
 
-```sh
-docker compose up
-```
+本地启动参考docker-compose-example.yml：
 
 ## API
 ### Host
@@ -224,6 +222,8 @@ AI聊天的过程为用户提问，AI回复，轮流进行。AI会基于之前�
 
 服务端接受请求后检查参数无误，立刻回复ok。随后多次请求回调接口，推送AI回答消息，消息以递增的形式发送。
 
+包含3种方式提问：基于世界知识，基于指定文件，基于Documents目录内的文档知识。使用"type"字段标识，分别为: "basic", "single_doc", "full_doc"。
+
 #### 请求格式
 post请求使用表单格式
 
@@ -231,12 +231,13 @@ Content-Type:multipart/form-data
 
 #### 请求字段：
 
-| 请求字段       | 类型            | 备注                                         |
-| -------------- | --------------- | -------------------------------------------- |
-| message        | string          | 提问内容                                     |
-| conversationId | string （可选） | 继续一段聊天则填入聊天ID，开始新的聊天则为空 |
-| path           | string （可选） | 基于该路径的文件回答，为空则仅基于模型知识   |
-| callback       | string          | 回调接口URI                                  |
+| 请求字段                                                 | 类型            | 备注                                         |
+| -------------------------------------------------------- | --------------- | -------------------------------------------- |
+| message                                                  | string          | 提问内容                                     |
+| conversationId                                           | string （可选） | 继续一段聊天则填入聊天ID，开始新的聊天则为空 |
+| path                                                     | string （可选） | 基于该路径的文件回答，为空则仅基于模型知识   |
+| ｜type ｜string （可选）｜选择提问方式，默认基于世界知识 |
+| callback                                                 | string          | 回调接口URI                                  |
 
 #### 返回：
 

@@ -84,7 +84,7 @@ spec:
         terminationMessagePolicy: File
         imagePullPolicy: IfNotPresent
       - name: zinc-gateway
-        image: 'calehh/file_search:v0.3.3'
+        image: 'calehh/file_search:v0.3.0'
         ports:
         - name: http
           containerPort: 6317
@@ -128,7 +128,7 @@ spec:
         terminationMessagePolicy: File
         imagePullPolicy: IfNotPresent
       - name: ai-llm
-        image: 'calehh/vicuna_infer_base:v0.1.4_test'
+        image: 'calehh/vicuna_infer_base:v0.2.0_test'
         command: ["python3.10", "ask_ai.py", "--cpp_model", "/data/3b_ggml-model-q4_0.bin", "--embedding_model", "/data/instructor-base", "--n_threads", "3"]
         ports:
         - name: http
@@ -152,7 +152,7 @@ spec:
         terminationMessagePolicy: File
         imagePullPolicy: IfNotPresent
       - name: ai-indexer
-        image: 'calehh/vicuna_infer_base:v0.1.4_test'
+        image: 'calehh/vicuna_infer_base:v0.2.0_test'
         command: ["python3.10", "generate_embedding.py", "--embedding_model", "/data/instructor-base", "--back_url", "http://localhost:6317/api/callback/vector"]
         ports:
         - name: http
