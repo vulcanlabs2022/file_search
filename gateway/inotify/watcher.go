@@ -157,30 +157,20 @@ func handleEvent(e jfsnotify.Event) error {
 		return nil
 	}
 
-	if e.Has(jfsnotify.Create) {
-		err := filepath.Walk(e.Name, func(childPath string, info fs.FileInfo, err error) error {
+	if e.Has(jfsnotify.Create) || e.Has(jfsnotify.Write) || e.Has(jfsnotify.Chmod) {
+		err := filepath.Walk(e.Name, func(docPath string, info fs.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 			if info.IsDir() {
 				//add dir to watch list
-				err = watcher.Add(childPath)
+				err = watcher.Add(docPath)
 				if err != nil {
 					log.Error().Msgf("watcher add error:%v", err)
 				}
 			} else {
-				log.Info().Msgf("push indexer task insert %s", childPath)
-				VectorCli.fsTask <- VectorDBTask{
-					Filename:  path.Base(childPath),
-					Filepath:  childPath,
-					IsInsert:  true,
-					Action:    AddAction,
-					TaskId:    uuid.NewString(),
-					StartTime: time.Now().Unix(),
-					FileId:    fileId(childPath),
-				}
 				//input zinc file
-				err = updateOrInputDoc(childPath)
+				err = updateOrInputDoc(docPath)
 				if err != nil {
 					log.Error().Msgf("update or input doc error %v", err)
 				}
@@ -191,20 +181,6 @@ func handleEvent(e jfsnotify.Event) error {
 			log.Error().Msgf("handle create file error %v", err)
 		}
 		return nil
-	}
-
-	if e.Has(jfsnotify.Write) || e.Has(jfsnotify.Chmod) {
-		log.Info().Msgf("push indexer task insert %s", e.Name)
-		VectorCli.fsTask <- VectorDBTask{
-			Filename:  path.Base(e.Name),
-			Filepath:  e.Name,
-			IsInsert:  true,
-			Action:    UpdataAction,
-			TaskId:    uuid.NewString(),
-			StartTime: time.Now().Unix(),
-			FileId:    fileId(e.Name),
-		}
-		return updateOrInputDoc(e.Name)
 	}
 	return nil
 }
@@ -247,6 +223,16 @@ func updateOrInputDoc(filepath string) error {
 			//doc changed
 			fileType := parser.GetTypeFromName(filepath)
 			if _, ok := parser.ParseAble[fileType]; ok {
+				log.Info().Msgf("push indexer task insert %s", filepath)
+				VectorCli.fsTask <- VectorDBTask{
+					Filename:  path.Base(filepath),
+					Filepath:  filepath,
+					IsInsert:  true,
+					Action:    AddAction,
+					TaskId:    uuid.NewString(),
+					StartTime: time.Now().Unix(),
+					FileId:    fileId(filepath),
+				}
 				content, err := parser.ParseDoc(bytes.NewReader(b), filepath)
 				if err != nil {
 					return err
@@ -277,6 +263,16 @@ func updateOrInputDoc(filepath string) error {
 	fileType := parser.GetTypeFromName(filepath)
 	content := ""
 	if _, ok := parser.ParseAble[fileType]; ok {
+		log.Info().Msgf("push indexer task insert %s", filepath)
+		VectorCli.fsTask <- VectorDBTask{
+			Filename:  path.Base(filepath),
+			Filepath:  filepath,
+			IsInsert:  true,
+			Action:    AddAction,
+			TaskId:    uuid.NewString(),
+			StartTime: time.Now().Unix(),
+			FileId:    fileId(filepath),
+		}
 		content, err = parser.ParseDoc(bytes.NewBuffer(b), filepath)
 		if err != nil {
 			return err
